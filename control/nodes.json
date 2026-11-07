@@ -1,0 +1,12 @@
+[
+  {
+    "id": "local-dev",
+    "city": "Local test node",
+    "country": "This computer",
+    "flag": "🖥️",
+    "region": "global",
+    "agentUrl": "http://127.0.0.1:9101",
+    "proxy": { "scheme": "http", "host": "127.0.0.1", "port": 9100 },
+    "wg": { "endpoint": "127.0.0.1:51820", "publicKey": "PVl0CvguYTo7riyvSj5nhx4AVRGmbb686Zw7poMxeZo=", "dns": "10.66.0.1" }
+  }
+]

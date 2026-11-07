@@ -1,0 +1,6 @@
+[
+  { "id": "cumulus-10gb", "mark": "C", "sponsor": "Infinitum", "title": "Cumulus://Cloud", "body": "Encrypted storage that grows with you. 10 GB free.", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange", "regions": ["global"] },
+  { "id": "firm-wallet", "mark": "F", "sponsor": "Infinitum", "title": "FIRM Wallet", "body": "One self-custody wallet for every Infinitum token.", "url": "https://infinitum-corporation.vercel.app/products/firm", "regions": ["global"] },
+  { "id": "scalvs-agents", "mark": "S", "sponsor": "Infinitum", "title": "SCALVS.ai", "body": "Build AI agents that research, write and code for you.", "url": "https://infinitum-corporation.vercel.app/products/scalus", "regions": ["global"] },
+  { "id": "fabric-secure", "mark": "FB", "sponsor": "Infinitum", "title": "FABRIC", "body": "Encrypted messaging, voice and video with AI built in.", "url": "https://infinitum-corporation.vercel.app/products/fabric", "regions": ["global"] }
+]

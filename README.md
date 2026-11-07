@@ -1,0 +1,254 @@
+# VEIL</>™
+
+Free, private VPN for Chrome, Edge, Firefox and Android, funded by privacy-safe ads.
+Ad revenue is pooled with the community and paid out in $VEIL.
+
+## What's here
+
+| Folder | What it is | Status |
+|---|---|---|
+| `control/` | Control API (`core.js`): anonymous sessions, server list, VPN credentials, reward minutes, ads, revenue, daily pool payouts. `server.js` runs it on Node + SQLite | Working, tested |
+| `deploy/api/` | The same control API as a Cloudflare Worker on Supabase Postgres (schema `veil_vpn`) | Built and tested (Postgres + Workers runtime), not deployed yet |
+| `supabase/migrations/` | Postgres schema for the control API | Applied to the Infinitum Corp project |
+| `node/` | VPN node: authenticated HTTPS proxy for browsers + WireGuard peer agent; `provision.sh` sets up a fresh Ubuntu server | Working, tested (WireGuard calls run in dry-run off Linux) |
+| `extension/` | Chrome / Edge / Firefox extension (Manifest V3) that routes browser traffic through a node | Working, tested in Chromium and Firefox |
+| `site/` | Public landing page and privacy policy (`npm run build` writes `dist/site`) | Ready to host; store links still empty |
+| `store/play/` | Google Play listing text, form answers and images | Ready |
+| `android/` | Android app (Kotlin): WireGuard tunnel for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
+| `veil-vpn/` | The shared interface. In a normal web page it runs as a simulated demo; inside the extension it runs live | Working |
+| `shared/` | Reward and revenue-share rules (`economics.js`) and token signing (`token.js`) | Single source of truth |
+| `test/` | End-to-end tests (control + node, real sockets) | 26 passing; plus 15 Worker tests in `deploy/api` |
+
+Requires Node.js 22.13 or newer. No third-party packages.
+
+## Run it locally
+
+```bash
+cp .env.example .env        # then replace the three secrets
+npm test                    # 26 end-to-end tests
+npm run node                # terminal 1: VPN node on :9100, agent on :9101
+npm run control             # terminal 2: control server on :8787
+npm run build               # builds dist/extension and dist/firefox, pointing at http://127.0.0.1:8787
+```
+
+Load the extension: open `chrome://extensions` (or `edge://extensions`), turn on Developer mode,
+click **Load unpacked** and pick `dist/extension`. Click the VEIL icon, then the power button.
+
+Firefox (128 or newer): open `about:debugging#/runtime/this-firefox`, click **Load Temporary
+Add-on** and pick `dist/firefox/manifest.json`. Same code; Firefox routes requests with
+`proxy.onRequest` instead of a browser-wide proxy setting.
+
+Note: browsers never send `localhost` traffic through a proxy, so test with a real website
+or a LAN address. The local node blocks private addresses unless `ALLOW_PRIVATE=1` is set.
+
+## Android app
+
+Native Kotlin, minimum Android 8.0, built on the official WireGuard library
+(`com.wireguard.android:tunnel`). The interface is the same `veil-vpn/` UI, bundled into the
+app and connected through a native bridge (`window.VeilAndroid`).
+
+- **Connect:** asks Android for VPN permission, sends the device's WireGuard public key to the
+  control server (`mode: "wireguard"`), and brings the tunnel up for all apps (`0.0.0.0/0, ::/0`).
+  The private key never leaves the phone.
+- **Honest status:** shows **Protected** only after a WireGuard handshake with the node, checked
+  every 5 seconds; no handshake for 3 minutes means **Connection lost**.
+- **Supervisor service:** a foreground service with a status notification (and a Disconnect
+  button) reconnects with backoff, renews the server lease every 10 minutes, and sends one reward
+  heartbeat a minute while the screen is on.
+- **Kill switch:** Android's own. The toggle opens VPN settings, where the user turns on
+  *Always-on VPN* and *Block connections without VPN*. While reconnecting, the tunnel stays up
+  so traffic is held rather than leaked.
+- The app's own control-server calls are excluded from the tunnel so it can always reconnect.
+
+Build (needs internet once to fetch Gradle and the libraries):
+
+```bash
+node scripts/build.mjs                              # copies the interface into the app
+cd android
+gradle wrapper --gradle-version 8.14.3              # once, with any installed Gradle
+./gradlew assembleDebug                             # app/build/outputs/apk/debug/app-debug.apk
+./gradlew bundleRelease -PveilControlUrl=https://api.your-domain   # app-release.aab for Google Play
+```
+
+**Release signing.** Release builds refuse to build without HTTPS and a signing key. The key is read
+from `android/keystore.properties` (see `keystore.properties.example`) or from the environment
+variables `VEIL_KEYSTORE`, `VEIL_KEYSTORE_PASSWORD`, `VEIL_KEY_ALIAS` and `VEIL_KEY_PASSWORD`.
+An upload key has been generated at `android/keystore/veil-upload.jks` with a random password in
+`android/keystore.properties`. **Back up both files somewhere safe** (a password manager); with Play
+App Signing a lost upload key can be reset, but it takes Google's support. Both are in `.gitignore`.
+Release lint needs extra downloads; on a network where those fail, add
+`-x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease`.
+
+Debug builds install as a separate app (`com.infinitum.veilvpn.debug`, "VEIL</>™ dev") and are the
+only builds allowed to use plain HTTP, to the local development server.
+
+If downloads fail on your network, two switches help:
+`-PgoogleMaven=https://redirector.gvt1.com/edgedl/android/maven2/` (Google's CDN, when
+dl.google.com is blocked) or `-PmavenRelay=http://127.0.0.1:8899` (a local relay that fetches with
+curl, when Java TLS downloads keep getting cut). With the relay, also pass
+`-Dorg.gradle.internal.http.socketTimeout=600000`.
+
+Or open the `android/` folder in Android Studio and press Run. The debug build talks to
+`http://10.0.2.2:8787`, which is your PC as seen from the Android emulator.
+
+Testing a full connection needs a real WireGuard node (a Linux server from `node/provision.sh`).
+Without one, the app correctly stays on **Connecting…** because no handshake happens.
+
+## Tracker blocking
+
+On by default for everyone; Settings → "Block trackers" turns it off (the app reconnects to apply it).
+
+- **Android (WireGuard):** the tunnel's DNS server, `10.66.0.1:53`, is the VEIL filter in `node/blocker.js`
+  (UDP and TCP). Listed names get "no such domain"; everything else goes to a private unbound resolver on
+  `127.0.0.1:5335` that logs nothing. Enabled on a node by `DNS_LISTEN` (provision.sh sets it).
+- **Browsers (proxy):** the node refuses connections to listed hosts with `403` and `X-Veil-Blocked: tracker`.
+- **List:** `node/blocklist.txt` (VEIL's own ~100 domains, always loaded) plus, on real nodes, the public
+  StevenBlack hosts list (MIT), refreshed weekly by a systemd timer and reloaded by the node every hour.
+  Set `BLOCKLIST_URL=''` when provisioning to use only the built-in list. VEIL's own in-app ad is first-party
+  and is not on any list.
+- **Count:** the node keeps one number per user per day in memory (by tunnel address or token id), never the
+  names. The app shows it ("12 blocked today") via `GET /v1/blocked`.
+- With Tor over VPN on, DNS goes to Tor instead, so WireGuard users are not filtered (browser users still are).
+
+## Network status and unsafe-network alerts (Android)
+
+- The Connect screen shows the current network's status: "This Wi-Fi: protected", "Mobile data: not
+  protected", or a warning for open/WEP Wi-Fi and networks with a sign-in page.
+- When the phone joins Wi-Fi while VEIL is off, a notification says so (stronger wording for open networks),
+  at most once per network every 15 minutes. **Protect now** connects straight from the notification to the
+  last location when VPN permission was already given; if that fails, the alert says why.
+- Works with the app closed (a `ConnectivityManager` callback registered with a `PendingIntent`, restored after
+  reboot and app updates). Settings → "Unsafe network alerts" turns it off.
+- Everything is decided on the phone. The network name is never read and nothing about the network is sent.
+
+## What Infinitum can't see
+
+Shown in app Settings and on the landing page (`#cant-see`), and kept in line with `site/privacy.html`:
+sites and apps used (no traffic or DNS logs; blocked trackers only counted), traffic contents, identity
+(no account; IP never written to disk), the user's Wi-Fi, and where Tor traffic goes. If you change what the
+servers store, update all three. The app's "Privacy policy" link uses the placeholder domain
+`veil.infinitum.example`, like the invite link: replace it when the site is hosted.
+
+## Tor over VPN
+
+Nodes provisioned with `TOR=1` run a Tor client and are marked `"tor": true` in `nodes.json`;
+the app shows them as "Tor" in Locations. With the Settings switch on:
+
+- **Browsers:** the user's proxy token carries `tor: true`, and the node opens every connection through
+  Tor's SOCKS port. Names are passed to Tor unresolved (no DNS leaves the node), so `.onion` works.
+- **Android:** the node agent adds the device's tunnel address to the nftables set `tor_peers`; the
+  firewall redirects its DNS to Tor's resolver and all its TCP to Tor's transparent port, and drops
+  anything else (UDP, ICMP) so nothing goes out around Tor.
+- Switching while connected reconnects automatically. Locations without Tor refuse it with a clear message.
+
+## Fraud protection
+
+All rules are in `control/fraud.js` and can be tuned with environment variables.
+
+| Check | Rule | Setting |
+|---|---|---|
+| Device | Every client sends a random install ID (Android: derived from the app's ANDROID_ID). The server stores a keyed hash and binds it to the session. The same token used from another device flags the session. | |
+| Duplicate accounts | Only one session per device earns per day. | |
+| Network | At most N sessions earn per network per day (same /24 or /48). | `FRAUD_NET_MAX` (8) |
+| Wallet | One wallet can be linked to at most N sessions; sessions sharing a wallet share one daily limit. | `FRAUD_WALLET_MAX` (3) |
+| Integrity | Emulators and rooted phones do not earn (on in production). For stronger checks, add Google Play Integrity. | `FRAUD_BLOCK_EMULATORS` |
+| Ads | A click counts only after a view; per-session daily limits. | `FRAUD_AD_VIEWS` (60), `FRAUD_AD_CLICKS` (10) |
+| Payouts | At epoch close, minutes are capped per device and per wallet; flagged sessions are paid into `held`. | |
+
+Review with `GET /admin/fraud`, then `POST /admin/fraud/release` (pay held payouts) or
+`POST /admin/fraud/ban` (void them), each with `{ "sid": "..." }`. Behind your own reverse proxy,
+set `TRUST_PROXY=1` so the network check uses `X-Forwarded-For`. Privacy: no IP address or raw
+device ID is stored; the network tag is a keyed hash of the address block with a key that changes
+daily, deleted after 3 days. The app tells members why rewards are paused.
+
+## How it works
+
+1. The extension gets an anonymous session from the control server (no email, no IP stored).
+2. **Connect** asks the control server for a 15-minute signed token for one node, sets the
+   browser's proxy to that node, and answers the node's login challenge with the token.
+3. The extension sends one check request through the tunnel (`veil-check.invalid`) and only
+   shows **Protected** when the node itself answers. This repeats every minute.
+4. **Kill switch:** if the node fails, the proxy stays in place so pages fail instead of
+   leaking; the extension retries with backoff (3 s up to 60 s). With the kill switch off it
+   falls back to a direct connection.
+5. **Rewards:** once a minute, if the user is active, the extension sends a heartbeat. The
+   server credits 1 minute (0.1 $VEIL), at most once per 55 s, only while connected, up to
+   240 minutes a day. No browsing data is involved.
+6. **Ads:** one contextual ad inside the app, picked by server region only. Views and
+   clicks are de-duplicated and add estimated revenue (`CPM_USD`, `CPC_USD`). Replace the
+   estimate with your ad network's real numbers via `POST /admin/revenue`. The **Ad revenue** tab
+   (`GET /v1/revenue`) shows today's network revenue and pool, the revenue your own ad views and
+   clicks generated (counts only, no ad or site detail), your estimated share, and your payout
+   for each closed epoch.
+7. **Daily epoch:** `POST /admin/epoch/close` splits that day's revenue by tier, pays the
+   community share to each member by rewarded minutes, applies the treasury boost, and
+   records it on an internal ledger. Users link a Solana address and **claim**, which moves
+   their balance to the settlement queue (`GET /admin/settlement-queue`).
+
+### Revenue split (in `shared/economics.js`)
+
+| Tier | Members | Community | Network | Ecosystem | Liquidity | Team | Treasury boost |
+|---|---|---|---|---|---|---|---|
+| Launch | < 100K | 50% | 20% | 15% | 10% | 5% | 1.0× |
+| Growth | 100K–1M | 55% | 17% | 13% | 10% | 5% | 1.25× |
+| Network | 1M–10M | 60% | 15% | 10% | 10% | 5% | 1.5× |
+| Mass | 10M+ | 65% | 12% | 8% | 10% | 5% | 2.0× |
+
+Every tier adds to exactly 100% of ad revenue. The treasury boost multiplies the **$VEIL**
+paid from the pool and is funded from the 15% community-treasury token allocation, so the
+pool never pays out more cash than came in.
+
+## Control API on Cloudflare + Supabase
+
+`deploy/api` runs `control/core.js` as the Worker `veil-vpn-api` on `api.infinitumveilvpn.app`, with the
+data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migration in `supabase/migrations/`).
+
+- **Same code, two databases.** `core.js` writes portable SQL; `server.js` runs it on SQLite and
+  `deploy/api/src/pg.js` turns it into Postgres (`$n` placeholders, `veil_vpn.` table names).
+- **Access.** Every `veil_vpn` table has RLS on with no policies and is revoked from `anon` and
+  `authenticated`: only the Worker's database connection can read or write it. No Supabase key goes to clients.
+- **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`, and
+  `DATABASE_URL` (Supabase dashboard → Connect → Transaction pooler, port 6543). For connection pooling, create a
+  Hyperdrive config and bind it as `HYPERDRIVE`; the Worker prefers it over `DATABASE_URL`.
+- **Vars:** `NODES` is the server list (same JSON as `control/nodes.json`), empty until a VPN server exists.
+- **Cron:** hourly purge of network tags older than 3 days.
+- **Memory-only state** (node health, rate limits, ad-event dedupe) is per Worker isolate. The fraud caps that
+  pay out money are enforced in the database, so this only loosens the short dedupe window.
+- **Tests:** `cd deploy/api && npm install && npm test` runs the Worker against real Postgres (PGlite) with the
+  migration, including the postgres.js driver over the wire.
+- **Deploy:** `cd deploy/api && npx cf deploy` (creates the `api.infinitumveilvpn.app` DNS record), then set
+  the secrets, then build the apps with `-PveilControlUrl=https://api.infinitumveilvpn.app` /
+  `CONTROL_URL=https://api.infinitumveilvpn.app`.
+
+## Going to production
+
+1. **Control server:** deploy `deploy/api` (above). To self-host instead, run `control/server.js` behind
+   HTTPS (Caddy, nginx or a load balancer) with `NODE_ENV=production`, real secrets, and a backed-up `DB_PATH`. Build the extension with
+   `CONTROL_URL=https://api.your-domain node scripts/build.mjs`.
+2. **Nodes:** for each location, rent an Ubuntu 24.04 server and run `node/provision.sh` with
+   the variables at the top of the script. It installs WireGuard, a firewall with NAT, a DNS
+   resolver with no query logging, a TLS certificate, and the VEIL node service with logs kept
+   in memory only. Paste the JSON it prints into `control/nodes.json`.
+3. **Extension stores:** zip `dist/extension` and submit to the Chrome Web Store and Edge
+   Add-ons; zip the contents of `dist/firefox` and submit to Firefox Add-ons (AMO), which signs it.
+   The add-on id is `veil@infinitum.vpn` in `scripts/build.mjs`; change it before the first upload.
+4. **Ad network:** swap `control/ads.json` for a contextual, non-tracking ad partner.
+
+## Not built yet
+
+- **iOS app.** Needs a Mac with Xcode and an Apple developer account (Network Extension + WireGuardKit).
+- **A real "Protected" test on Android, and Tor through a real node.** Both need a rented Linux
+  server from `node/provision.sh` (with `TOR=1` for Tor).
+- **Store links.** Fill in `DOWNLOADS` in `site/index.html` once the Chrome, Firefox and Play
+  listings are live, and host `dist/site` (the privacy policy URL is needed for Play).
+- **Google Play Integrity** for stronger device checks (needs a Google Cloud project).
+- **On-chain $VEIL.** Payouts stop at the settlement queue. The Solana token, its audit, and the
+  job that sends queued balances to FIRM Wallet come after the legal review.
+- **Safari extension.**
+- **Placeholders to replace:** the invite link in `veil-vpn/app.js` and the demo ads in `control/ads.json`.
+
+## Before launch
+
+Paying users a share of ad revenue in a token may be treated as a security in some countries.
+Get a legal review before $VEIL payouts go live, and keep the "not a share in Infinitum" wording
+consistent with how payouts actually work.

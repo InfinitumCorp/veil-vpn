@@ -1,0 +1,13 @@
+{
+  "name": "VEIL</>™",
+  "short_name": "VEIL</>™",
+  "description": "Free, private VPN. Ad revenue shared with the community in $VEIL.",
+  "start_url": "./#connect",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111820",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

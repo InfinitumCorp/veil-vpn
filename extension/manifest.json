@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "VEIL</>™",
+  "short_name": "VEIL</>™",
+  "version": "0.1.0",
+  "description": "Free, private VPN for your browser. Ad revenue is shared with the community in $VEIL.",
+  "action": { "default_popup": "index.html", "default_title": "VEIL</>™", "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" } },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["proxy", "storage", "alarms", "idle", "webRequest", "webRequestAuthProvider"],
+  "host_permissions": ["<all_urls>"],
+  "minimum_chrome_version": "120"
+}

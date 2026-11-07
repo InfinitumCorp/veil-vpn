@@ -1,0 +1,31 @@
+# Secrets and local state: never commit these.
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.db
+*.db-wal
+*.db-shm
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+android/keystore.properties
+android/keystore/
+android/local.properties
+.claude/
+
+# Build output and tool state
+node_modules/
+dist/
+.cloudflare/
+.wrangler/
+android/build/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+*.apk
+*.aab
+*.log

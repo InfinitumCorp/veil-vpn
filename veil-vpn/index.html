@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VEIL&lt;/&gt;™</title>
+<meta name="description" content="Free, private VPN. Ad revenue shared with the community in $VEIL.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1116" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VEIL&lt;/&gt;™">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#connect" data-nav="connect">VEIL<span class="code">&lt;/&gt;</span><sup class="tm">™</sup></a>
+  <nav class="tabs" aria-label="Main">
+    <a href="#connect" data-nav="connect">Connect</a>
+    <a href="#servers" data-nav="servers">Locations</a>
+    <a href="#earn" data-nav="earn">Earn</a>
+    <a href="#revenue" data-nav="revenue">Ad revenue</a>
+    <a href="#settings" data-nav="settings">Settings</a>
+  </nav>
+  <span class="proto-note" role="note">Demo</span>
+</header>
+
+<main id="main">
+  <!-- CONNECT -->
+  <section class="view" id="view-connect" aria-labelledby="h-connect">
+    <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>
+    <h1 id="h-connect" aria-live="polite"><span id="status-word">Not protected.</span><span class="grey" id="h-loc">Zürich.</span></h1>
+    <div class="actions">
+      <button class="primary power" id="power" type="button" aria-pressed="false"><span id="power-label">Connect</span><span aria-hidden="true">↗</span></button>
+      <button class="ghost location" id="location-btn" type="button"><span class="cc mono" id="loc-cc">CH</span><span id="loc-name">Zürich, Switzerland</span><span aria-hidden="true">+</span></button>
+    </div>
+    <p class="net" id="net" role="status" hidden><span class="dot" aria-hidden="true"></span><span id="net-text"></span></p>
+    <p class="shield" id="shield" role="status"><span class="dot" aria-hidden="true"></span><span id="shield-text">Tracker blocking on</span><span class="mono" id="shield-count"></span></p>
+    <dl class="stats">
+      <div><dt>Session</dt><dd class="mono" id="st-time">00:00:00</dd></div>
+      <div><dt>Down</dt><dd class="mono" id="st-down">0.0 MB</dd></div>
+      <div><dt>Up</dt><dd class="mono" id="st-up">0.0 MB</dd></div>
+      <div><dt>Today</dt><dd class="mono"><span id="today-veil">0.00</span> <small>$VEIL</small></dd></div>
+    </dl>
+    <div class="meter" role="progressbar" aria-label="Daily reward limit" aria-valuemin="0" aria-valuemax="24" id="day-meter" aria-valuenow="0"><span id="day-fill"></span></div>
+    <aside class="ad" aria-label="Sponsored">
+      <span class="label">Sponsored</span>
+      <div class="ad-body" id="ad-body"></div>
+    </aside>
+  </section>
+
+  <!-- LOCATIONS -->
+  <section class="view" id="view-servers" aria-labelledby="h-servers" hidden>
+    <div class="context"><span>Locations</span><span id="srv-count"></span></div>
+    <h2 id="h-servers">Choose a location.</h2>
+    <label class="search"><span class="sr">Search</span><input id="srv-search" type="search" placeholder="Search" autocomplete="off"></label>
+    <ul class="srv-list" id="srv-list"></ul>
+  </section>
+
+  <!-- EARN -->
+  <section class="view" id="view-earn" aria-labelledby="h-earn" hidden>
+    <div class="context"><span>$VEIL</span><span>Solana</span></div>
+    <h2 id="h-earn">Use. <span class="grey">Earn.</span></h2>
+    <div class="kpis">
+      <div class="kpi"><span class="label">Today</span><p class="mono" id="k-today">0.00</p></div>
+      <div class="kpi"><span class="label">Pending</span><p class="mono" id="k-pending">0.00</p></div>
+      <div class="kpi"><span class="label">Ad share</span><p class="mono" id="k-share">0.00</p></div>
+      <div class="kpi"><span class="label">Lifetime</span><p class="mono" id="k-life">0.00</p></div>
+    </div>
+    <p class="fine" id="earn-hold" role="status" hidden></p>
+    <div class="row">
+      <div><span class="label">FIRM Wallet</span><p class="mono" id="wallet-addr">Not linked</p></div>
+      <button class="primary" id="claim" type="button" disabled><span>Claim</span><span aria-hidden="true">↗</span></button>
+    </div>
+    <p class="fine">$VEIL is not equity, income or an investment return.</p>
+  </section>
+
+  <!-- AD REVENUE -->
+  <section class="view" id="view-revenue" aria-labelledby="h-revenue" hidden>
+    <div class="context"><span>Epoch <span id="epoch">—</span></span><span id="rev-source">Estimated</span></div>
+    <h2 id="h-revenue">Ad revenue. <span class="grey">Shared.</span></h2>
+    <div class="kpis">
+      <div class="kpi"><span class="label">Today</span><p class="mono" id="r-rev">—</p><small id="r-ads"></small></div>
+      <div class="kpi"><span class="label">Community pool</span><p class="mono" id="r-pool">—</p><small id="r-pct"></small></div>
+      <div class="kpi"><span class="label">Your ads</span><p class="mono" id="r-mine">—</p><small id="r-mine-sub"></small></div>
+      <div class="kpi"><span class="label">Your share</span><p class="mono" id="r-share">—</p><small id="r-share-sub"></small></div>
+    </div>
+
+    <h3 class="sub">Split</h3>
+    <div class="split" role="img" aria-label="Ad revenue split">
+      <span style="--w:50" class="s1"></span><span style="--w:20" class="s2"></span><span style="--w:15" class="s3"></span><span style="--w:10" class="s4"></span><span style="--w:5" class="s5"></span>
+    </div>
+    <ul class="legend">
+      <li><i class="s1"></i>Community<b>50%</b></li>
+      <li><i class="s2"></i>Network<b>20%</b></li>
+      <li><i class="s3"></i>Ecosystem<b>15%</b></li>
+      <li><i class="s4"></i>Liquidity<b>10%</b></li>
+      <li><i class="s5"></i>Team<b>5%</b></li>
+    </ul>
+
+    <h3 class="sub">Payouts</h3>
+    <table class="tbl">
+      <thead><tr><th scope="col">Day</th><th scope="col">Revenue</th><th scope="col">Pool</th><th scope="col">Minutes</th><th scope="col">You</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+
+    <h3 class="sub">Tiers</h3>
+    <table class="tbl">
+      <thead><tr><th scope="col">Tier</th><th scope="col">Members</th><th scope="col">Share</th><th scope="col">Boost</th></tr></thead>
+      <tbody id="tier-body"></tbody>
+    </table>
+    <div class="meter" aria-hidden="true"><span id="tier-fill"></span></div>
+    <p class="fine" id="tier-next"></p>
+
+    <div class="row">
+      <span class="label">Grow the pool</span>
+      <button class="primary" id="invite" type="button"><span>Copy invite link</span><span aria-hidden="true">↗</span></button>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings" aria-labelledby="h-settings" hidden>
+    <div class="context"><span>Settings</span><span>On this device</span></div>
+    <h2 id="h-settings">Settings.</h2>
+    <ul class="settings">
+      <li><span>Block trackers <small>Ads, analytics and data collectors, for every app</small></span><label class="switch"><input type="checkbox" data-set="block" checked><span></span><b class="sr">Block trackers</b></label></li>
+      <li class="android-only" hidden><span>Unsafe network alerts <small>A notification when you join Wi-Fi while not protected</small></span><label class="switch"><input type="checkbox" data-set="alerts" checked><span></span><b class="sr">Unsafe network alerts</b></label></li>
+      <li><span>Kill switch</span><label class="switch"><input type="checkbox" data-set="kill" checked><span></span><b class="sr">Kill switch</b></label></li>
+      <li><span>Tor over VPN</span><label class="switch"><input type="checkbox" data-set="tor"><span></span><b class="sr">Tor over VPN</b></label></li>
+      <li><span>Connect on launch</span><label class="switch"><input type="checkbox" data-set="auto"><span></span><b class="sr">Connect on launch</b></label></li>
+      <li><span>Earn $VEIL</span><label class="switch"><input type="checkbox" data-set="earn" checked><span></span><b class="sr">Earn VEIL</b></label></li>
+      <li><span>Protocol</span><select data-set="proto" aria-label="Protocol"><option>WireGuard</option><option>Stealth (WireGuard over TLS)</option><option>IKEv2</option></select></li>
+      <li class="wallet-row"><span>FIRM Wallet</span>
+        <form id="wallet-form" class="wallet-form"><label class="sr" for="wallet-input">Solana address</label><input id="wallet-input" class="mono" placeholder="Solana address" autocomplete="off" spellcheck="false"><button class="ghost" id="link-wallet" type="submit">Link</button></form></li>
+    </ul>
+    <details class="cant-see">
+      <summary>What Infinitum can't see</summary>
+      <ul>
+        <li><b>The sites and apps you use.</b> Servers keep no traffic or DNS logs. Blocked trackers are only counted, never named.</li>
+        <li><b>What you send.</b> Your traffic is encrypted from your device to our server, and HTTPS sites stay encrypted beyond it.</li>
+        <li><b>Who you are.</b> No account, email or phone number. Your IP address is never written to disk.</li>
+        <li><b>Your Wi-Fi.</b> Network checks and alerts run on your phone. The network's name is never read.</li>
+        <li><b>Where Tor sends your traffic.</b> With Tor on, our server sees only that you use Tor.</li>
+      </ul>
+      <p>We keep an anonymous session, minutes connected, ad view counts, a hashed device ID (one earning account per device) and, if you link one, your wallet address. <a href="https://veil.infinitum.example/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+    </details>
+  </section>
+</main>
+
+<nav class="bottom" aria-label="Main">
+  <a href="#connect" data-nav="connect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><span>Connect</span></a>
+  <a href="#servers" data-nav="servers"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><span>Locations</span></a>
+  <a href="#earn" data-nav="earn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M16.5 7.5c-.7-1.4-2.4-2-4.5-2-2.5 0-4 1.2-4 3s1.6 2.6 4 3 4 1.3 4 3.2-1.6 3.3-4 3.3c-2.2 0-3.9-.8-4.6-2.3"/></svg><span>Earn</span></a>
+  <a href="#revenue" data-nav="revenue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Revenue</span></a>
+  <a href="#settings" data-nav="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></a>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

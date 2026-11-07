@@ -1,0 +1,14 @@
+{
+  "name": "veil-vpn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "VEIL</>™: control server, VPN node, browser extension and web app.",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "control": "node --env-file=.env control/server.js",
+    "node": "node --env-file=.env node/node.js",
+    "test": "node --test test/"
+  }
+}

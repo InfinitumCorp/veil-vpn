@@ -1,0 +1,107 @@
+# VEIL</>™ built-in tracker list: ad networks, analytics and data-collection services.
+# Each line blocks the domain and all of its subdomains. provision.sh adds a larger,
+# regularly updated public list on real nodes; this file is the always-present base.
+# Never list anything a VEIL client needs (the control server, VEIL nodes).
+
+# Ad networks and exchanges
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+pagead2.googlesyndication.com
+adnxs.com
+criteo.com
+criteo.net
+taboola.com
+outbrain.com
+rubiconproject.com
+pubmatic.com
+openx.net
+casalemedia.com
+advertising.com
+adsrvr.org
+amazon-adsystem.com
+media.net
+smartadserver.com
+moatads.com
+3lift.com
+sharethrough.com
+yieldmo.com
+bidswitch.net
+indexww.com
+adform.net
+teads.tv
+zemanta.com
+revcontent.com
+mgid.com
+
+# Analytics and measurement
+google-analytics.com
+googletagmanager.com
+googletagservices.com
+analytics.google.com
+scorecardresearch.com
+quantserve.com
+hotjar.com
+hotjar.io
+mixpanel.com
+segment.io
+segment.com
+amplitude.com
+fullstory.com
+mouseflow.com
+crazyegg.com
+clarity.ms
+newrelic.com
+nr-data.net
+chartbeat.com
+chartbeat.net
+heap.io
+heapanalytics.com
+kissmetrics.com
+optimizely.com
+app-measurement.com
+
+# Social and cross-site tracking
+connect.facebook.net
+pixel.facebook.com
+analytics.twitter.com
+ads-twitter.com
+analytics.tiktok.com
+ads.linkedin.com
+px.ads.linkedin.com
+bat.bing.com
+snap.licdn.com
+sc-static.net
+
+# Data brokers and fingerprinting
+bluekai.com
+krxd.net
+exelator.com
+demdex.net
+everesttech.net
+rlcdn.com
+agkn.com
+adsymptotic.com
+tapad.com
+crwdcntrl.net
+liadm.com
+id5-sync.com
+fingerprintjs.com
+fpjs.io
+
+# Mobile app ad and attribution SDKs
+app-measurement.com
+adjust.com
+adjust.io
+appsflyer.com
+branch.io
+kochava.com
+singular.net
+applovin.com
+unityads.unity3d.com
+supersonicads.com
+inmobi.com
+chartboost.com
+vungle.com
+startappservice.com

@@ -1,0 +1,212 @@
+<title>VEIL&lt;/&gt;™ VPN</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A free VPN from Infinitum, paid for by privacy-safe ads, with the ad revenue shared with the people who use it.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+/* Layout: one 1040px column of hairline-ruled sections, display type set tight, the revenue split as the centrepiece. */
+:root{
+  --paper:#fff;--ink:#111820;--muted:#52606b;--grey:#7b8287;--line:#d6dce1;--accent:#2454dd;--tint:#eef2fc;--ok:#14866d;
+  --sans:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --col:1040px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0c1116;--ink:#e8edf1;--muted:#97a4ae;--grey:#6c7780;--line:#26313a;--accent:#6f93ff;--tint:#131c2b;--ok:#3fc7a2;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#0c1116;--ink:#e8edf1;--muted:#97a4ae;--grey:#6c7780;--line:#26313a;--accent:#6f93ff;--tint:#131c2b;--ok:#3fc7a2;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-weight:400;text-wrap:balance}
+.code{color:var(--accent)}
+.grey{color:var(--grey)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-size:13px;color:var(--muted);letter-spacing:.02em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.wrap{max-width:var(--col);margin:0 auto;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--paper)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--paper);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:24px;padding-block:14px}
+.brand{text-decoration:none;font-size:16px;letter-spacing:-.01em;white-space:nowrap}
+.brand sup,.tm{font-size:.55em;margin-left:1px}
+nav{margin-left:auto;display:flex;gap:24px;font-size:14px}
+nav a{text-decoration:none;color:var(--muted)}
+nav a:hover{color:var(--ink)}
+
+section{border-bottom:1px solid var(--line)}
+section>.wrap{padding-block:72px}
+.context{display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:28px}
+
+/* hero */
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:56px;align-items:center;padding-block:64px 72px}
+.hero h1{font-size:clamp(46px,7.4vw,96px);line-height:.94;letter-spacing:-.045em}
+.hero p.lead{font-size:clamp(19px,2vw,23px);line-height:1.4;letter-spacing:-.01em;margin-top:28px;max-width:30ch}
+.phone{justify-self:end;width:100%;max-width:300px;aspect-ratio:9/16;border:1px solid var(--line);overflow:hidden;background:#fff}
+.phone img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+
+/* downloads */
+.get{display:grid;gap:0;margin-top:36px;border-top:1px solid var(--ink)}
+.get a,.get span.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--line);text-decoration:none}
+.get a:hover .go{color:var(--accent)}
+.get .what{font-size:19px;letter-spacing:-.01em}
+.get .what small{display:block;font-size:13px;color:var(--muted);letter-spacing:0}
+.go{font-size:14px;white-space:nowrap}
+.soon{color:var(--grey)}
+
+/* facts */
+h2{font-size:clamp(34px,4.4vw,56px);line-height:1;letter-spacing:-.035em}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:44px;border-top:1px solid var(--line)}
+.fact{padding:22px 24px 24px 0;border-bottom:1px solid var(--line)}
+.fact+.fact{padding-left:24px;border-left:1px solid var(--line)}
+.fact:nth-child(3n+1){padding-left:0;border-left:0}
+.fact h3{font-size:19px;letter-spacing:-.01em;margin-bottom:8px}
+.fact p{font-size:15px;color:var(--muted);max-width:34ch}
+
+/* revenue split */
+.split{margin-top:44px;display:grid;gap:22px}
+.tier{display:grid;grid-template-columns:150px minmax(0,1fr) 64px;gap:20px;align-items:center}
+.tier .name{font-size:17px}
+.tier .name small{display:block;font-size:12px;color:var(--muted)}
+.bar{display:flex;height:34px;border:1px solid var(--line)}
+.bar i{display:block;height:100%}
+.bar .c{background:var(--accent)}
+.bar .n{background:color-mix(in srgb,var(--ink) 55%,var(--paper))}
+.bar .e{background:color-mix(in srgb,var(--ink) 35%,var(--paper))}
+.bar .l{background:color-mix(in srgb,var(--ink) 20%,var(--paper))}
+.bar .t{background:color-mix(in srgb,var(--ink) 9%,var(--paper))}
+.tier .pct{font-size:26px;letter-spacing:-.02em;text-align:right;color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:12px;height:12px;display:inline-block}
+.note{font-size:14px;color:var(--muted);max-width:66ch;margin-top:28px}
+
+/* earn */
+.earn{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:44px;border-top:1px solid var(--line)}
+.earn div{padding:20px 20px 22px 0;border-bottom:1px solid var(--line)}
+.earn div+div{padding-left:20px;border-left:1px solid var(--line)}
+.earn .v{font-size:clamp(28px,3.4vw,40px);letter-spacing:-.03em;margin-top:6px}
+.earn .v small{font-size:14px;color:var(--muted);letter-spacing:0;margin-left:4px}
+
+footer .wrap{display:flex;flex-wrap:wrap;gap:16px 32px;justify-content:space-between;padding-block:36px 48px;font-size:13px;color:var(--muted)}
+footer p{max-width:62ch}
+
+@media (max-width:820px){
+  .hero .wrap{grid-template-columns:minmax(0,1fr);gap:40px}
+  .phone{justify-self:start;max-width:240px}
+  .facts{grid-template-columns:minmax(0,1fr)}
+  .fact,.fact+.fact{padding:20px 0;border-left:0}
+  .earn{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .earn div:nth-child(3){padding-left:0;border-left:0}
+  .tier{grid-template-columns:minmax(0,1fr) 56px;gap:8px 16px}
+  .tier .bar{grid-column:1 / -1;grid-row:2}
+  nav a:not(.keep){display:none}
+}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:flex-basis .6s ease}}
+</style>
+
+<header><div class="wrap">
+  <a class="brand" href="#top">VEIL<span class="code">&lt;/&gt;</span><sup>™</sup></a>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a><a href="#cant-see">Can't see</a><a href="#share">Revenue share</a><a href="privacy.html">Privacy</a><a class="keep" href="#download">Download</a>
+  </nav>
+</div></header>
+
+<main id="top">
+<section class="hero"><div class="wrap">
+  <div>
+    <div class="context"><span>Infinitum</span><span>Free VPN</span><span>$VEIL</span></div>
+    <h1>Private.<br><span class="grey">Free.</span><br>Shared.</h1>
+    <p class="lead">A free VPN paid for by privacy-safe ads. Half or more of the ad revenue goes back to the people who use it.</p>
+    <div class="get" id="download" aria-label="Download VEIL"></div>
+  </div>
+  <figure class="phone" style="margin:0"><img src="phone.png" alt="The VEIL app on Android, connected and protected, with the session timer and today's $VEIL"></figure>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="context"><span>How it works</span><span>WireGuard</span><span>No logs</span></div>
+  <h2>Encrypted. <span class="grey">Nothing kept.</span></h2>
+  <div class="facts">
+    <div class="fact"><h3>Every app, one tunnel</h3><p>On Android, WireGuard encrypts all of your phone's traffic. In Chrome, Edge and Firefox, the extension routes the browser.</p></div>
+    <div class="fact"><h3>No account</h3><p>No email and no sign-up. The app gets an anonymous session. We never store the sites you visit, your DNS queries or your IP address.</p></div>
+    <div class="fact"><h3>Honest status</h3><p>"Protected" appears only after the server has answered through the tunnel, and is checked again every minute.</p></div>
+    <div class="fact"><h3>Kill switch</h3><p>If the server drops, traffic is held instead of leaking, and VEIL reconnects on its own.</p></div>
+    <div class="fact"><h3>Tor over VPN</h3><p>One switch sends your traffic from our server into the Tor network, .onion sites included. Nothing else to install.</p></div>
+    <div class="fact"><h3>Ads by location only</h3><p>One small ad, chosen by the server location you picked. Never by what you browse.</p></div>
+    <div class="fact"><h3>Trackers blocked</h3><p>On by default: ad networks, analytics and data collectors are stopped before they connect, in every app. The app shows how many, today.</p></div>
+    <div class="fact"><h3>Unsafe Wi-Fi alerts</h3><p>Join Wi-Fi while VEIL is off and your phone tells you, with a stronger warning for open networks. One tap protects you.</p></div>
+    <div class="fact"><h3>A status for every network</h3><p>The app says plainly whether the network you are on right now is protected.</p></div>
+  </div>
+</div></section>
+
+<section id="cant-see"><div class="wrap">
+  <div class="context"><span>Privacy by default</span><span>No logs</span><span>Checked on your device</span></div>
+  <h2>What Infinitum <span class="grey">can't see.</span></h2>
+  <div class="facts">
+    <div class="fact"><h3>The sites and apps you use</h3><p>Our servers keep no traffic logs and no DNS logs. Blocked trackers are counted, never named.</p></div>
+    <div class="fact"><h3>What you send</h3><p>Traffic is encrypted from your device to our server. HTTPS sites stay encrypted all the way, so the contents are unreadable to us.</p></div>
+    <div class="fact"><h3>Who you are</h3><p>No account, email or phone number. Your IP address is never written to disk.</p></div>
+    <div class="fact"><h3>Your Wi-Fi</h3><p>Network checks and alerts run on your phone. The network's name is never read, and nothing about it is sent to us.</p></div>
+    <div class="fact"><h3>Where Tor takes you</h3><p>With Tor over VPN on, our server sees only that you use Tor, not the sites beyond it.</p></div>
+    <div class="fact"><h3>What we do keep</h3><p>An anonymous session, minutes connected, ad view counts, a hashed device ID and, if you link one, a wallet address. <a href="privacy.html">Details</a></p></div>
+  </div>
+</div></section>
+
+<section id="share"><div class="wrap">
+  <div class="context"><span>Revenue share</span><span>Paid daily</span><span>Every tier adds to 100%</span></div>
+  <h2>The community's share <span class="grey">grows with the network.</span></h2>
+  <div class="split" id="split" role="list"></div>
+  <div class="legend" aria-hidden="true">
+    <span><i style="background:var(--accent)"></i>Community</span>
+    <span><i style="background:color-mix(in srgb,var(--ink) 55%,var(--paper))"></i>Network and servers</span>
+    <span><i style="background:color-mix(in srgb,var(--ink) 35%,var(--paper))"></i>Ecosystem</span>
+    <span><i style="background:color-mix(in srgb,var(--ink) 20%,var(--paper))"></i>Liquidity</span>
+    <span><i style="background:color-mix(in srgb,var(--ink) 9%,var(--paper))"></i>Team</span>
+  </div>
+  <p class="note">Each day's ad revenue is split by the tier the network is in. The community share is divided among members by the minutes they were connected that day. Larger tiers also add a treasury boost of 1.25× to 2× in $VEIL, funded from the community treasury allocation, never from extra cash.</p>
+</div></section>
+
+<section id="earn"><div class="wrap">
+  <div class="context"><span>Earn</span><span>FIRM Wallet</span><span>Solana</span></div>
+  <h2>Use it. <span class="grey">Earn $VEIL.</span></h2>
+  <div class="earn">
+    <div><span class="label">Per connected minute</span><p class="v mono">0.1<small>$VEIL</small></p></div>
+    <div><span class="label">Daily limit</span><p class="v mono">24<small>$VEIL</small></p></div>
+    <div><span class="label">Community share today</span><p class="v mono">50%<small>of ads</small></p></div>
+    <div><span class="label">At 10M members</span><p class="v mono">65%<small>of ads</small></p></div>
+  </div>
+  <p class="note">To keep the pool fair: one earning account per device, one daily limit per wallet, and no rewards on emulators or rooted phones. $VEIL is a utility token. It is not equity, income or an investment return, and it is not a share in Infinitum.</p>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>VEIL<span class="code">&lt;/&gt;</span><span class="tm">™</span> by Infinitum · <span class="mono">info@theinfinitumcorporation.com</span></span>
+  <span><a href="privacy.html">Privacy policy</a></span>
+</div></footer>
+
+<script>
+// Store links: fill in each URL once the listing is live; until then the row shows "Soon".
+const DOWNLOADS = [
+  { name: 'Chrome and Edge', note: 'Browser extension · Chrome 120+, Edge', url: '' },
+  { name: 'Firefox', note: 'Browser extension · Firefox 128+', url: '' },
+  { name: 'Android', note: 'Whole-phone VPN · Android 8.0+', url: '' },
+  { name: 'iPhone', note: 'In development', url: '' },
+];
+document.getElementById('download').innerHTML = DOWNLOADS.map((d) => d.url
+  ? `<a href="${d.url}" rel="noopener"><span class="what">${d.name}<small>${d.note}</small></span><span class="go">Get it ↗</span></a>`
+  : `<span class="row"><span class="what">${d.name}<small>${d.note}</small></span><span class="go soon">Soon</span></span>`).join('');
+
+// Same tiers as shared/economics.js: [name, members from, community, network, ecosystem, liquidity, team, boost]
+const TIERS = [
+  ['Launch', 0, 50, 20, 15, 10, 5, 1.0], ['Growth', 100000, 55, 17, 13, 10, 5, 1.25],
+  ['Network', 1000000, 60, 15, 10, 10, 5, 1.5], ['Mass', 10000000, 65, 12, 8, 10, 5, 2.0],
+];
+const people = (n) => n === 0 ? 'Under 100K members' : (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}K`) + '+ members';
+document.getElementById('split').innerHTML = TIERS.map(([name, from, c, n, e, l, t, boost]) => `
+  <div class="tier" role="listitem" aria-label="${name}: community ${c}%, network ${n}%, ecosystem ${e}%, liquidity ${l}%, team ${t}%">
+    <span class="name">${name}<small>${people(from)}${boost > 1 ? ` · ${boost}× boost` : ''}</small></span>
+    <span class="bar" aria-hidden="true"><i class="c" style="flex-basis:${c}%"></i><i class="n" style="flex-basis:${n}%"></i><i class="e" style="flex-basis:${e}%"></i><i class="l" style="flex-basis:${l}%"></i><i class="t" style="flex-basis:${t}%"></i></span>
+    <span class="pct mono">${c}%</span>
+  </div>`).join('');
+</script>
