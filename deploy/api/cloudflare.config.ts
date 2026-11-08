@@ -16,9 +16,9 @@ export default defineConfig({
       TOKEN_SECRET: bindings.secret(),
       AGENT_SECRET: bindings.secret(),
       ADMIN_KEY: bindings.secret(),
-      // Supabase transaction pooler URI (port 6543). Replace with a Hyperdrive binding named
-      // HYPERDRIVE to pool connections; the Worker prefers it when present.
-      DATABASE_URL: bindings.secret(),
+      // DATABASE_URL (Supabase transaction pooler URI, port 6543) is set by the owner after the
+      // first deploy, outside this file:  npx wrangler secret put DATABASE_URL --name veil-vpn-api
+      // Or add a Hyperdrive binding named HYPERDRIVE; the Worker prefers it when present.
     },
     // Hourly purge of network tags older than 3 days.
     triggers: [triggers.scheduled({ schedule: "17 * * * *" })],
