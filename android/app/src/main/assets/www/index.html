@@ -9,6 +9,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="firm-suite.css">
 </head>
 <body>
 <header class="top">
@@ -131,6 +132,7 @@
       <li class="wallet-row"><span>FIRM Wallet</span>
         <form id="wallet-form" class="wallet-form"><label class="sr" for="wallet-input">Solana address</label><input id="wallet-input" class="mono" placeholder="Solana address" autocomplete="off" spellcheck="false"><button class="ghost" id="link-wallet" type="submit">Link</button></form></li>
     </ul>
+    <firm-suite product="veil" compact></firm-suite>
     <details class="cant-see">
       <summary>What Infinitum can't see</summary>
       <ul>
@@ -153,6 +155,7 @@
   <a href="#settings" data-nav="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></a>
 </nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="firm-suite.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
