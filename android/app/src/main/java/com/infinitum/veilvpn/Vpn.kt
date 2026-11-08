@@ -28,6 +28,14 @@ object Vpn {
     @Volatile var tx = 0L; private set
     @Volatile var lastError: String? = null; private set
     @Volatile var tor = false; private set
+    /** "wireguard" (VEIL's own tunnel) or "ikev2" (Android's built-in IKEv2 client, Android 11+). */
+    @Volatile var protocol = "wireguard"; private set
+
+    /** The protocol chosen in Settings; IKEv2 falls back to WireGuard below Android 11. */
+    fun chosenProtocol(ctx: Context): String {
+        val p = ctx.getSharedPreferences("veil", Context.MODE_PRIVATE).getString("proto", "wireguard")
+        return if (p == "ikev2" && Ikev2.supported()) "ikev2" else "wireguard"
+    }
 
     private var backend: GoBackend? = null
     private var peerKey: Key? = null
@@ -68,11 +76,13 @@ object Vpn {
         server = serverId
         lastError = null
         try {
-            val kp = keyPair(ctx)
             // Tor over VPN: the node redirects this device's traffic into Tor (Settings switch).
             val prefs = ctx.getSharedPreferences("veil", Context.MODE_PRIVATE)
             val wantTor = prefs.getBoolean("tor", false)
             val wantBlock = prefs.getBoolean("block", true)   // tracker blocking: on unless switched off
+            if (chosenProtocol(ctx) == "ikev2") return connectIkev2(ctx, serverId, reconnect, wantTor, wantBlock)
+            if (protocol == "ikev2") { Ikev2.stop(ctx); protocol = "wireguard" }
+            val kp = keyPair(ctx)
             val r = ControlApi(ctx).call("POST", "/v1/connect", JSONObject()
                 .put("server", serverId).put("mode", "wireguard").put("publicKey", kp.publicKey.toBase64()).put("tor", wantTor).put("block", wantBlock))
             tor = r.optBoolean("tor", false)
@@ -104,16 +114,49 @@ object Vpn {
         } catch (e: Exception) {
             lastError = (e as? ApiError)?.code ?: e.javaClass.simpleName
             if (!reconnect) {
-                runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
+                if (protocol == "ikev2") Ikev2.stop(ctx)
+                else runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
                 state = "off"
             } else state = "error"
             throw e
         }
     }
 
+    /**
+     * IKEv2: the control server's login goes into Android's IKEv2 profile. On a lease renewal while
+     * the session is up nothing is restarted (the login stays the same; the server just extends it).
+     */
+    private fun connectIkev2(ctx: Context, serverId: String, reconnect: Boolean, wantTor: Boolean, wantBlock: Boolean) {
+        val r = ControlApi(ctx).call("POST", "/v1/connect", JSONObject()
+            .put("server", serverId).put("mode", "ikev2").put("tor", wantTor).put("block", wantBlock))
+        tor = r.optBoolean("tor", false)
+        region = r.getJSONObject("server").optString("region", "global")
+        val switching = protocol != "ikev2"
+        if (switching) {
+            runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
+            peerKey = null; assignedIp = null
+        }
+        protocol = "ikev2"
+        if (switching || !reconnect || !Ikev2.connected(ctx)) {
+            if (Ikev2.provision(ctx, r.getJSONObject("ikev2")) != null) throw ApiError("vpn_permission_denied")
+            Ikev2.start(ctx)
+        }
+        if (!reconnect) state = "connecting"
+        check(ctx)
+    }
+
     /** Refreshes counters and decides between connecting / on / error from the last handshake. */
     fun check(ctx: Context): String {
         if (state == "off") return state
+        if (protocol == "ikev2") {
+            val up = Ikev2.connected(ctx)
+            state = when {
+                up -> { if (since == 0L) since = System.currentTimeMillis(); "on" }
+                state == "on" -> "error"
+                else -> state
+            }
+            return state
+        }
         val key = peerKey ?: return state
         val stats = runCatching { backend(ctx).getStatistics(tunnel) }.getOrNull() ?: return state
         rx = stats.totalRx(); tx = stats.totalTx()
@@ -129,7 +172,8 @@ object Vpn {
 
     @Synchronized
     fun disconnect(ctx: Context) {
-        runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
+        if (protocol == "ikev2") Ikev2.stop(ctx)
+        else runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
         runCatching { ControlApi(ctx).call("POST", "/v1/disconnect") }
         state = "off"; since = 0L; rx = 0L; tx = 0L; peerKey = null; assignedIp = null; tor = false
     }
@@ -137,4 +181,5 @@ object Vpn {
     fun snapshot(): JSONObject = JSONObject()
         .put("state", state).put("server", server).put("region", region)
         .put("since", since).put("rx", rx).put("tx", tx).put("error", lastError).put("tor", tor)
+        .put("protocol", protocol)
 }

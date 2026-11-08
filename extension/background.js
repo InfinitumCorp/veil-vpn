@@ -193,6 +193,12 @@ export const handlers = {   // exported for tests; the popup reaches these by me
   adEvent: (m) => api('/v1/ads/event', { method: 'POST', body: { ad: m.ad, kind: m.kind } }),
   wallet: (m) => api('/v1/wallet', { method: 'POST', body: { address: m.address } }),
   claim: () => api('/v1/claim', { method: 'POST' }),
+  // A WireGuard / OpenVPN / IKEv2 set-up for another device. For WireGuard the popup made the key
+  // pair and sends only the public key.
+  manual: async (m) => {
+    const s = await settings();
+    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode: String(m.mode), manual: true, publicKey: m.publicKey, tor: s.tor, block: s.block } });
+  },
   setting: async (m) => {
     const s = await settings(); s[m.key] = m.value; await set('local', 'settings', s);
     // Tor and tracker blocking are part of the proxy token, so switching them while connected reconnects.

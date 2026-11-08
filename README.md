@@ -10,14 +10,14 @@ Ad revenue is pooled with the community and paid out in $VEIL.
 | `control/` | Control API (`core.js`): anonymous sessions, server list, VPN credentials, reward minutes, ads, revenue, daily pool payouts. `server.js` runs it on Node + SQLite | Working, tested |
 | `deploy/api/` | The same control API as a Cloudflare Worker on Supabase Postgres (schema `veil_vpn`) | Live at https://api.infinitumveilvpn.app (no VPN servers listed yet) |
 | `supabase/migrations/` | Postgres schema and the `veil_api` database login for the control API | Applied to the Infinitum Corp project |
-| `node/` | VPN node: authenticated HTTPS proxy for browsers + WireGuard peer agent; `provision.sh` sets up a fresh Ubuntu server | Working, tested (WireGuard calls run in dry-run off Linux) |
+| `node/` | VPN node: authenticated HTTPS proxy for browsers + agent for WireGuard peers and IKEv2 / OpenVPN logins; `provision.sh` sets up a fresh Ubuntu server with all four protocols | Working, tested (wg, nft and swanctl calls run in dry-run off Linux) |
 | `extension/` | Chrome / Edge / Firefox extension (Manifest V3) that routes browser traffic through a node | Working, tested in Chromium and Firefox |
 | `site/` | Public landing page and privacy policy (`npm run build` writes `dist/site`) | Ready to host; store links still empty |
 | `store/play/` | Google Play listing text, form answers and images | Ready |
-| `android/` | Android app (Kotlin): WireGuard tunnel for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
+| `android/` | Android app (Kotlin): WireGuard or IKEv2 (Android 11+) for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
 | `veil-vpn/` | The shared interface. In a normal web page it runs as a simulated demo; inside the extension it runs live | Working |
 | `shared/` | Reward and revenue-share rules (`economics.js`) and token signing (`token.js`) | Single source of truth |
-| `test/` | End-to-end tests (control + node, real sockets) | 26 passing; plus 15 Worker tests in `deploy/api` |
+| `test/` | End-to-end tests (control + node, real sockets) | 27 passing; plus 15 Worker tests in `deploy/api` |
 
 Requires Node.js 22.13 or newer. No third-party packages.
 
@@ -25,7 +25,7 @@ Requires Node.js 22.13 or newer. No third-party packages.
 
 ```bash
 cp .env.example .env        # then replace the three secrets
-npm test                    # 26 end-to-end tests
+npm test                    # 27 end-to-end tests
 npm run node                # terminal 1: VPN node on :9100, agent on :9101
 npm run control             # terminal 2: control server on :8787
 npm run build               # builds dist/extension and dist/firefox, pointing at http://127.0.0.1:8787
@@ -40,6 +40,32 @@ Add-on** and pick `dist/firefox/manifest.json`. Same code; Firefox routes reques
 
 Note: browsers never send `localhost` traffic through a proxy, so test with a real website
 or a LAN address. The local node blocks private addresses unless `ALLOW_PRIVATE=1` is set.
+
+## VPN protocols
+
+| Protocol | Where | Server side (from `node/provision.sh`) |
+|---|---|---|
+| HTTPS proxy | Browser extension (this browser only) | Node proxy on TCP 443, short-lived signed token |
+| WireGuard | Android app (default); any device with the WireGuard app via a `.conf` set-up | `wg0`, UDP 51820, `10.66.0.0/16` |
+| IKEv2/IPsec | Android app on Android 11+ (Android's own IKEv2 client); iPhone, Mac and Windows built-in VPN | strongSwan, UDP 500/4500, EAP-MSCHAPv2, Let's Encrypt certificate, `10.67.0.0/16` |
+| OpenVPN | Any device with OpenVPN Connect via an `.ovpn` set-up | UDP and TCP 1194, own CA + tls-crypt, `10.68.0.0/16` (UDP) and `10.69.0.0/16` (TCP) |
+
+- The node lists what it offers in `/v1/servers` (`modes`). A node offers IKEv2 or OpenVPN when
+  its NODES entry has an `ikev2` or `openvpn` block; `provision.sh` prints the whole entry,
+  including the OpenVPN CA and tls-crypt key.
+- **Logins (IKEv2 and OpenVPN):** one username and password per session, derived by the control
+  server (HMAC), so a saved profile keeps working. The node agent accepts it until the lease ends:
+  15 minutes for the app (renewed every 10), 7 days for a set-up for another device. The agent
+  writes the strongSwan EAP secrets and checks OpenVPN logins through a hook server on
+  `127.0.0.1:9102`; strongSwan's updown script and OpenVPN's client-connect script report which
+  tunnel address a login got, so Tor over VPN and tracker blocking follow the user on every protocol.
+  An expired login is refused at the next connection; a session that is already up is not cut.
+- **Other devices** (Settings): the app and the extension can produce a WireGuard `.conf` (the key
+  pair is made on the device with WebCrypto X25519; only the public key is sent), an OpenVPN
+  `.ovpn` with a login, or IKEv2 details. Set-ups last 7 days and earn nothing. Disconnecting in
+  the app also removes WireGuard set-ups made from the same session.
+- **No logs:** OpenVPN runs with `verb 0` and without its status file; charon logs errors only, to
+  the in-memory journal.
 
 ## Android app
 
@@ -126,8 +152,7 @@ On by default for everyone; Settings → "Block trackers" turns it off (the app 
 Shown in app Settings and on the landing page (`#cant-see`), and kept in line with `site/privacy.html`:
 sites and apps used (no traffic or DNS logs; blocked trackers only counted), traffic contents, identity
 (no account; IP never written to disk), the user's Wi-Fi, and where Tor traffic goes. If you change what the
-servers store, update all three. The app's "Privacy policy" link uses the placeholder domain
-`veil.infinitum.example`, like the invite link: replace it when the site is hosted.
+servers store, update all three. The app's "Privacy policy" and invite links point to https://infinitumveilvpn.app.
 
 ## Tor over VPN
 
@@ -250,7 +275,10 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 - **On-chain $VEIL.** Payouts stop at the settlement queue. The Solana token, its audit, and the
   job that sends queued balances to FIRM Wallet come after the legal review.
 - **Safari extension.**
-- **Placeholders to replace:** the invite link in `veil-vpn/app.js` and the demo ads in `control/ads.json`.
+- **Placeholders to replace:** the demo ads in `control/ads.json`.
+- **Direct downloads:** `node scripts/package-downloads.mjs` copies the signed APK and the Chrome/Edge zip (with
+  `SHA256SUMS.txt`) into `dist/site/download/`; then `cf deploy` in `deploy/site`. Swap in store URLs in
+  `site/index.html` once the listings are live.
 
 ## Before launch
 

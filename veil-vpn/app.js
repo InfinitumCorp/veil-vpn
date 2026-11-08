@@ -89,6 +89,7 @@ function demoBackend() {
     async setWallet(a) { S.wallet = a; save(); return this.me(); },
     async claim() { const n = S.pending; S.pending = 0; save(); return { queued: n > 0 ? 1 : 0 }; },
     setEarn(v) { earn = v; },
+    async manual() { throw new Error('demo_manual'); },
   };
 }
 
@@ -134,6 +135,7 @@ function liveBackend() {
     setWallet: (address) => call('wallet', { address }),
     claim: () => call('claim'),
     setEarn: (v) => call('setting', { key: 'earn', value: v }),
+    manual: (server, mode, publicKey) => call('manual', { server, mode, publicKey }),
   };
 }
 
@@ -142,18 +144,26 @@ if (EXT) document.documentElement.classList.add('ext');
 
 // ---------------------------------------------------------------- settings
 const SET_KEY = 'veil-vpn-settings';
-const DEFAULT_SET = { block: true, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'WireGuard' };
+const DEFAULT_SET = { block: true, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'wireguard' };
+// Protocols: the label in the status line and a one-line hint under the Settings row.
+const PROTOS = {
+  wireguard: ['WireGuard', 'WireGuard: fastest, modern cryptography'],
+  ikev2: ['IKEv2', 'IKEv2/IPsec: the VPN built into the system, steady when switching Wi-Fi and mobile data'],
+  openvpn: ['OpenVPN', 'OpenVPN: works on almost any network'],
+  proxy: ['HTTPS', 'HTTPS proxy: this browser only'],
+};
 let SET;
 try { SET = Object.assign({}, DEFAULT_SET, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch { SET = { ...DEFAULT_SET }; }
 const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch { /* storage unavailable */ } };
 if (EXT) {
   try { Object.assign(SET, await new Promise((r) => chrome.storage.local.get('settings', (v) => r(v.settings || {})))); } catch { /* defaults */ }
-  SET.proto = 'HTTPS';
+  SET.proto = 'proxy';
 }
 if (ANDROID) {
   try { Object.assign(SET, await androidCall('settings')); } catch { /* defaults */ }
-  SET.proto = 'WireGuard';
+  if (!['wireguard', 'ikev2'].includes(SET.proto)) SET.proto = 'wireguard';
 }
+if (!PROTOS[SET.proto]) SET.proto = 'wireguard';   // older saved labels
 
 // ---------------------------------------------------------------- helpers
 const fmt = (n, d = 1) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -165,7 +175,7 @@ const cc = (flag = '') => [...flag].map((c) => c.codePointAt(0) - 0x1f1e6).filte
 const plural = (n, w) => `${fmtInt(n)} ${w}${Math.round(n) === 1 ? '' : 's'}`;
 const pct = (w) => (!w ? '0%' : w < 1e-4 ? '<0.01%' : `${(w * 100).toPrecision(2)}%`);
 const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
-const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly' }[e.message] || `Something went wrong (${e.message})`);
+const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
 
 // ---------------------------------------------------------------- state
 let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = null;
@@ -356,7 +366,7 @@ async function renderRevenue() {
   } else { $('#tier-fill').style.width = '100%'; $('#tier-next').textContent = ''; }
 }
 $('#invite').addEventListener('click', async () => {
-  const url = 'https://veil.infinitum.example/vpn';
+  const url = 'https://infinitumveilvpn.app/';
   try { await navigator.clipboard.writeText(url); toast('Copied'); } catch { toast(url); }
 });
 
@@ -385,7 +395,7 @@ $$('[data-set]').forEach((el) => {
     SET[k] = el.type === 'checkbox' ? el.checked : el.value; saveSet();
     if (LIVE && k !== 'earn') api.call('setting', { key: k, value: SET[k] }).catch(() => {});
     if (k === 'earn') api.setEarn(SET[k]);
-    if (k === 'proto') $('#st-proto').textContent = el.value.split(' ')[0];
+    if (k === 'proto') paintProto();
     // Tor and tracker blocking are set per connection: the app reconnects to apply them.
     if (k === 'block') paintShield();
     if ((k === 'tor' || k === 'block') && conn.state === 'on') {
@@ -398,16 +408,73 @@ $$('[data-set]').forEach((el) => {
 });
 
 // ---------------------------------------------------------------- boot
+const protoOptions = (ids) => ids.map((id) => `<option value="${id}">${PROTOS[id][0]}${id === 'ikev2' ? '/IPsec' : ''}</option>`).join('');
 if (EXT) {
   $('.proto-note').textContent = '';
-  $('[data-set="proto"]').innerHTML = '<option value="HTTPS">HTTPS</option>';
+  $('[data-set="proto"]').innerHTML = protoOptions(['proxy']);
 }
 if (ANDROID) {
   $$('.android-only').forEach((el) => { el.hidden = false; });
   $('.proto-note').textContent = '';
-  $('[data-set="proto"]').innerHTML = '<option value="WireGuard">WireGuard</option>';
+  $('[data-set="proto"]').innerHTML = protoOptions(SET.ikev2 === false ? ['wireguard'] : ['wireguard', 'ikev2']);
 }
-$('#st-proto').textContent = SET.proto.split(' ')[0];
+$('[data-set="proto"]').value = SET.proto;
+function paintProto() {
+  const [label, hint] = PROTOS[SET.proto] || PROTOS.wireguard;
+  $('#st-proto').textContent = label;
+  $('#proto-hint').textContent = hint;
+}
+paintProto();
+
+// ---------------------------------------------------------------- other devices
+// WireGuard keys are made here (WebCrypto X25519); only the public key goes to the server.
+const b64 = (u8) => btoa(String.fromCharCode(...u8));
+async function wgKeys() {
+  let kp;
+  try { kp = await crypto.subtle.generateKey({ name: 'X25519' }, true, ['deriveBits']); } catch { throw new Error('webcrypto_x25519'); }
+  const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', kp.privateKey));
+  return { publicKey: b64(pub), privateKey: b64(pkcs8.slice(-32)) };
+}
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fileName = (sv, ext) => `veil-${String(sv?.city || 'vpn').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${ext}`;
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'application/octet-stream' }));
+  a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+const until = (exp) => new Date(exp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+$('#dev-get').addEventListener('click', async () => {
+  const mode = $('#dev-proto').value; const sv = srv(selected); const out = $('#dev-out');
+  const btn = $('#dev-get'); btn.disabled = true;
+  try {
+    if (!sv) throw new Error('unknown_server');
+    if (LIVE && sv.modes && !sv.modes.includes(mode)) throw new Error(`${mode}_unavailable`);
+    const keys = mode === 'wireguard' ? await wgKeys() : null;
+    const r = await api.manual(sv.id, mode, keys?.publicKey);
+    let html = '';
+    if (mode === 'wireguard') {
+      const w = r.wireguard;
+      const conf = ['[Interface]', `PrivateKey = ${keys.privateKey}`, `Address = ${w.address}`, `DNS = ${w.dns}`, '', '[Peer]',
+        `PublicKey = ${w.peerPublicKey}`, `AllowedIPs = ${w.allowedIps}`, `Endpoint = ${w.endpoint}`, `PersistentKeepalive = ${w.keepalive}`, ''].join('\n');
+      download(fileName(sv, 'conf'), conf);
+      html = `<p>Saved <b>${esc(fileName(sv, 'conf'))}</b>. Import it in the WireGuard app. Its private key was made on this device and is in the file only: keep it to yourself. Valid until ${until(r.exp)}.</p>`;
+    } else if (mode === 'openvpn') {
+      download(fileName(sv, 'ovpn'), r.openvpn.profile);
+      html = `<p>Saved <b>${esc(fileName(sv, 'ovpn'))}</b>. Import it in OpenVPN Connect and sign in with:</p>
+        <dl><dt>Username</dt><dd class="mono">${esc(r.openvpn.username)}</dd><dt>Password</dt><dd class="mono">${esc(r.openvpn.password)}</dd></dl><p>Valid until ${until(r.exp)}.</p>`;
+    } else {
+      const k = r.ikev2;
+      html = `<p>Add a VPN of type <b>IKEv2</b> (Settings → VPN on iPhone and Mac; Settings → Network → VPN on Windows):</p>
+        <dl><dt>Server</dt><dd class="mono">${esc(k.server)}</dd><dt>Remote ID</dt><dd class="mono">${esc(k.remoteId)}</dd>
+        <dt>Sign-in</dt><dd>Username and password (EAP-MSCHAPv2)</dd><dt>Username</dt><dd class="mono">${esc(k.username)}</dd><dt>Password</dt><dd class="mono">${esc(k.password)}</dd></dl>
+        <p>Leave Local ID empty. Valid until ${until(r.exp)}.</p>`;
+    }
+    out.innerHTML = html; out.hidden = false;
+  } catch (e) { toast(errText(e)); }
+  finally { btn.disabled = false; }
+});
 api.setEarn(SET.earn);
 try {
   servers = await api.servers();

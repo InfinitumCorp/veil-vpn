@@ -1,6 +1,7 @@
 package com.infinitum.veilvpn
 
 import android.content.Context
+import android.content.Intent
 import android.webkit.JavascriptInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ class Bridge(
     private val ctx: Context,
     private val scope: CoroutineScope,
     private val reply: (id: String, result: String?, error: String?) -> Unit,
-    private val askVpnPermission: suspend () -> Boolean,
+    private val askVpnPermission: suspend (Intent?) -> Boolean,
     private val openVpnSettings: () -> Unit,
 ) {
     private val api = ControlApi(ctx)
@@ -51,16 +52,7 @@ class Bridge(
             }
             list.toString()
         }
-        "connect" -> {
-            val server = p.getString("server")
-            if (!askVpnPermission()) throw ApiError("vpn_permission_denied")
-            prefs.edit().putString("last_server", server).apply()
-            VeilService.connect(ctx, server)
-            // Wait briefly for the first handshake; the UI keeps polling "state" after this.
-            withTimeoutOrNull(12_000) { while (Vpn.state == "connecting" || Vpn.state == "off") delay(250) }
-            if (Vpn.state == "off" && Vpn.lastError != null) throw ApiError(Vpn.lastError!!)
-            Vpn.snapshot().toString()
-        }
+        "connect" -> connect(p.getString("server"))
         "disconnect" -> {
             VeilService.disconnect(ctx)
             withTimeoutOrNull(5_000) { while (Vpn.state != "off") delay(100) }
@@ -74,7 +66,15 @@ class Bridge(
         "adEvent" -> api.call("POST", "/v1/ads/event", JSONObject().put("ad", p.getString("ad")).put("kind", p.getString("kind"))).toString()
         "wallet" -> api.call("POST", "/v1/wallet", JSONObject().put("address", p.opt("address") ?: JSONObject.NULL)).toString()
         "claim" -> api.call("POST", "/v1/claim").toString()
+        // A set-up for another device (laptop, iPhone, router): WireGuard needs the public key the
+        // interface generated; the private key never leaves the interface.
+        "manual" -> api.call("POST", "/v1/connect", JSONObject()
+            .put("server", p.getString("server")).put("mode", p.getString("mode")).put("manual", true)
+            .put("publicKey", p.optString("publicKey", "")).put("tor", prefs.getBoolean("tor", false))
+            .put("block", prefs.getBoolean("block", true))).toString()
         "settings" -> JSONObject()
+            .put("proto", Vpn.chosenProtocol(ctx))
+            .put("ikev2", Ikev2.supported())
             .put("earn", prefs.getBoolean("earn", true))
             .put("auto", prefs.getBoolean("auto", false))
             .put("tor", prefs.getBoolean("tor", false))
@@ -92,9 +92,34 @@ class Bridge(
                     if (Vpn.state != "off" && server != null) runCatching { Vpn.connect(ctx, server, reconnect = true) }
                 }
                 "kill" -> openVpnSettings()   // Android's own Always-on VPN + block switch
+                "proto" -> {
+                    val v = p.getString("value").takeIf { it == "ikev2" || it == "wireguard" } ?: "wireguard"
+                    if (v == "ikev2" && !Ikev2.supported()) throw ApiError("ikev2_needs_android_11")
+                    val was = Vpn.chosenProtocol(ctx)
+                    prefs.edit().putString("proto", v).apply()
+                    // Switching while connected: reconnect on the new protocol right away.
+                    val server = Vpn.server
+                    if (v != was && Vpn.state != "off" && server != null) connect(server)
+                }
             }
             "{}"
         }
         else -> throw ApiError("unknown_call")
+    }
+
+    private suspend fun connect(server: String): String {
+        if (Vpn.chosenProtocol(ctx) == "ikev2") {
+            // Android asks once whether VEIL may add its IKEv2 profile (the system's own dialog).
+            val r = api.call("POST", "/v1/connect", JSONObject().put("server", server).put("mode", "ikev2")
+                .put("tor", prefs.getBoolean("tor", false)).put("block", prefs.getBoolean("block", true)))
+            val consent = Ikev2.provision(ctx, r.getJSONObject("ikev2"))
+            if (consent != null && !askVpnPermission(consent)) throw ApiError("vpn_permission_denied")
+        } else if (!askVpnPermission(null)) throw ApiError("vpn_permission_denied")
+        prefs.edit().putString("last_server", server).apply()
+        VeilService.connect(ctx, server)
+        // Wait briefly for the first handshake; the UI keeps polling "state" after this.
+        withTimeoutOrNull(15_000) { while (Vpn.state == "connecting" || Vpn.state == "off") delay(250) }
+        if (Vpn.state == "off" && Vpn.lastError != null) throw ApiError(Vpn.lastError!!)
+        return Vpn.snapshot().toString()
     }
 }

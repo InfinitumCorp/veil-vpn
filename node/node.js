@@ -1,5 +1,7 @@
 // VEIL</>™ node: an authenticated forward proxy for browser extensions, plus a small
-// agent API the control server uses to add and remove WireGuard peers and read load.
+// agent API the control server uses to add and remove WireGuard peers, IKEv2 / OpenVPN logins, and read load.
+// IKEv2 (strongSwan) and OpenVPN call a hook server on 127.0.0.1 to check logins and to report which
+// tunnel address a login got, so Tor and tracker blocking follow the user on every protocol.
 // Tor over VPN: when the user's token asks for Tor, proxied connections go out through the
 // node's local Tor client (SOCKS), and WireGuard peers are put in an nftables set whose traffic
 // the firewall redirects into Tor (see provision.sh).
@@ -8,7 +10,8 @@ import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 import dns from 'node:dns/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { timingSafeEqual } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { verify } from '../shared/token.js';
@@ -38,6 +41,10 @@ let blocklist = loadBlocklist(BLOCKLISTS);
 setInterval(() => { blocklist = loadBlocklist(BLOCKLISTS); }, 3_600_000).unref();   // picks up list refreshes
 const blockedCount = createCounter();
 const unblocked = new Set();                                  // tunnel IPs of users who turned blocking off
+const ACCOUNTS_FILE = env('ACCOUNTS_FILE', '');              // e.g. /var/lib/veil/accounts.json; empty = memory only
+const SWAN_SECRETS = env('SWAN_SECRETS', '');                // e.g. /etc/swanctl/conf.d/veil-secrets.conf; empty = no IKEv2
+const SWAN_DRY_RUN = env('SWAN_DRY_RUN', WG_DRY_RUN ? '1' : '') === '1';
+const HOOK_PORT = Number(env('HOOK_PORT', 9102));            // 127.0.0.1 only: OpenVPN and strongSwan scripts
 for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET })) {
   if (v.length < 24) { console.error(`${k} must be set to at least 24 characters`); process.exit(1); }
 }
@@ -182,6 +189,76 @@ const onRequest = async (req, res) => {
   req.pipe(up);
 };
 
+// ---------- IKEv2 / OpenVPN logins ----------
+// One login per session (made by the control server). `live` is the app's 15-minute lease, `manual`
+// the 7-day set-up for another device; the login works while either is in the future.
+const USER_RE = /^v[0-9a-f]{15}$/;
+const PASS_RE = /^[A-Za-z0-9_-]{24}$/;
+const TUN_RE = /^10\.(66|67|68|69)\.\d{1,3}\.\d{1,3}$/;
+const accounts = new Map();   // user -> { pass, live, manual, tor, block }
+const bound = new Map();      // tunnel IP -> user (IKEv2 / OpenVPN clients that are up now)
+const validAcct = (a, now = Date.now()) => !!a && Math.max(a.live, a.manual) > now;
+if (ACCOUNTS_FILE) {
+  try { for (const [u, a] of Object.entries(JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8')))) if (USER_RE.test(u) && validAcct(a)) accounts.set(u, a); }
+  catch { /* first start */ }
+}
+const swanctl = (args) => new Promise((resolve) => {
+  if (SWAN_DRY_RUN) { console.log('[dry-run] swanctl', args.join(' ')); return resolve(); }
+  execFile('swanctl', args, { timeout: 10_000 }, () => resolve());
+});
+let saving = null, again = false;
+// Writes the login list (so a node restart keeps it) and the strongSwan EAP secrets, then reloads them.
+function persist() {
+  if (saving) { again = true; return saving; }
+  saving = (async () => {
+    do {
+      again = false;
+      const atomic = (file, text) => { writeFileSync(`${file}.tmp`, text, { mode: 0o600 }); renameSync(`${file}.tmp`, file); };
+      if (ACCOUNTS_FILE) atomic(ACCOUNTS_FILE, JSON.stringify(Object.fromEntries(accounts)));
+      if (SWAN_SECRETS) {
+        const lines = [...accounts].filter(([, a]) => validAcct(a)).map(([u, a]) => `  eap-${u} {\n    id = ${u}\n    secret = "${a.pass}"\n  }`);
+        atomic(SWAN_SECRETS, `# Written by the VEIL node agent. Do not edit.\nsecrets {\n${lines.join('\n')}\n}\n`);
+        await swanctl(['--load-creds', '--clear', '--noprompt']);
+      }
+    } while (again);
+  })().catch((e) => console.error(`accounts: ${e.message}`)).finally(() => { saving = null; });
+  return saving;
+}
+setInterval(() => {
+  let changed = false;
+  for (const [u, a] of accounts) if (!validAcct(a)) { accounts.delete(u); changed = true; }
+  if (changed) persist();
+}, 60_000).unref();
+// Tor and blocking for a tunnel address, from its login's settings.
+const applyTunnel = (ip, a) => {
+  nft(a?.tor ? 'add' : 'delete', ip);
+  if (a && a.block === false) unblocked.add(ip); else unblocked.delete(ip);
+};
+const sameText = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
+
+// Local hook API for the VPN daemons. Listens on 127.0.0.1 only and never sees traffic.
+const hookHandler = async (req, res) => {
+  const text = await new Promise((r) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 1024) req.destroy(); }); req.on('end', () => r(s)); });
+  // OpenVPN auth-user-pass-verify (via-file): "username\npassword\n".
+  if (req.method === 'POST' && req.url === '/auth') {
+    const [user = '', pass = ''] = text.split(/\r?\n/);
+    const a = accounts.get(user);
+    const ok = USER_RE.test(user) && PASS_RE.test(pass) && validAcct(a) && sameText(a.pass, pass);
+    res.writeHead(ok ? 204 : 403); return res.end();
+  }
+  // strongSwan updown / OpenVPN client-connect and client-disconnect: { user, ip, up }.
+  if (req.method === 'POST' && req.url === '/bind') {
+    let b = {}; try { b = JSON.parse(text); } catch { /* bad input */ }
+    const ip = String(b.ip || '').replace(/\/\d+$/, '');
+    if (!TUN_RE.test(ip) || ip.startsWith('10.66.')) { res.writeHead(400); return res.end(); }
+    const user = String(b.user || '');
+    if (b.up === true && USER_RE.test(user) && validAcct(accounts.get(user))) { bound.set(ip, user); applyTunnel(ip, accounts.get(user)); }
+    else { bound.delete(ip); applyTunnel(ip, null); }
+    res.writeHead(204); return res.end();
+  }
+  res.writeHead(404); res.end();
+};
+
 // ---------- WireGuard agent ----------
 const run = (args) => new Promise((resolve, reject) => {
   if (WG_DRY_RUN) { console.log('[dry-run] wg', args.join(' ')); return resolve(''); }
@@ -202,7 +279,7 @@ const agentHandler = async (req, res) => {
   if (req.headers.authorization !== `Bearer ${AGENT_SECRET}`) return agentJson(res, 401, { error: 'unauthorized' });
   const body = await new Promise((r) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 4096) req.destroy(); }); req.on('end', () => { try { r(s ? JSON.parse(s) : {}); } catch { r({}); } }); });
   try {
-    if (req.method === 'GET' && req.url === '/health') return agentJson(res, 200, { node: NODE_ID, tunnels, peers, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + peers * 8) / CAPACITY) * 100 });
+    if (req.method === 'GET' && req.url === '/health') return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100 });
     if (req.method === 'POST' && req.url === '/peers') {
       if (!KEY_RE.test(body.publicKey || '') || !IP_RE.test(body.ip || '')) return agentJson(res, 400, { error: 'bad_input' });
       if (body.tor === true && !TOR_SOCKS) return agentJson(res, 400, { error: 'tor_unavailable' });
@@ -217,11 +294,30 @@ const agentHandler = async (req, res) => {
       if (IP_RE.test(body.ip || '')) { await nft('delete', body.ip); unblocked.delete(body.ip); }
       peers = Math.max(0, peers - 1); return agentJson(res, 200, { ok: true });
     }
+    // IKEv2 / OpenVPN login for one session. Settings changes apply at once to tunnels already up.
+    if (req.method === 'POST' && req.url === '/accounts') {
+      if (!USER_RE.test(body.user || '') || !PASS_RE.test(body.pass || '') || typeof body.exp !== 'number') return agentJson(res, 400, { error: 'bad_input' });
+      if (body.tor === true && !TOR_SOCKS) return agentJson(res, 400, { error: 'tor_unavailable' });
+      const old = accounts.get(body.user) || { live: 0, manual: 0 };
+      const a = { pass: body.pass, tor: body.tor === true, block: body.block !== false,
+        live: body.manual === true ? old.live : body.exp, manual: body.manual === true ? Math.max(old.manual, body.exp) : old.manual };
+      accounts.set(body.user, a);
+      for (const [ip, u] of bound) if (u === body.user) applyTunnel(ip, a);
+      await persist();
+      return agentJson(res, 200, { ok: true, tor: a.tor });
+    }
+    if (req.method === 'POST' && req.url === '/accounts/remove') {
+      const a = accounts.get(body.user || '');
+      if (a) { a.live = 0; if (!validAcct(a)) accounts.delete(body.user); await persist(); }
+      return agentJson(res, 200, { ok: true });
+    }
     // How many trackers this user had blocked today (tunnel IP for WireGuard, token id for browsers).
     if (req.method === 'GET' && req.url.startsWith('/blocked')) {
       const u = new URL(req.url, 'http://x');
-      const ip = u.searchParams.get('ip'), sid = u.searchParams.get('sid');
-      return agentJson(res, 200, { blocked: (ip && IP_RE.test(ip) ? blockedCount.get(ip) : 0) + (sid ? blockedCount.get(`t:${sid}`) : 0) });
+      const ip = u.searchParams.get('ip'), sid = u.searchParams.get('sid'), acct = u.searchParams.get('acct');
+      let n = (ip && IP_RE.test(ip) ? blockedCount.get(ip) : 0) + (sid ? blockedCount.get(`t:${sid}`) : 0);
+      if (acct) for (const [tip, user] of bound) if (user === acct) n += blockedCount.get(tip);
+      return agentJson(res, 200, { blocked: n });
     }
     agentJson(res, 404, { error: 'not_found' });
   } catch { agentJson(res, 500, { error: 'wg_failed' }); }
@@ -236,7 +332,9 @@ export function start() {
   const agentServer = tls ? https.createServer(tls, agentHandler) : http.createServer(agentHandler);
   if (DNS_LISTEN) startDnsFilter({ listen: DNS_LISTEN, upstream: DNS_UPSTREAM, list: () => blocklist, counter: blockedCount, allows: (ip) => unblocked.has(ip) })
     .catch((e) => console.error(`dns filter: ${e.message}`));
+  const hook = http.createServer(hookHandler);
   return Promise.all([
+    new Promise((r) => hook.listen(HOOK_PORT, '127.0.0.1', () => r(hook))),
     new Promise((r) => proxy.listen(PROXY_PORT, () => { console.log(`node ${NODE_ID} proxy on :${PROXY_PORT} (${tls ? 'https' : 'http'})`); r(proxy); })),
     new Promise((r) => agentServer.listen(AGENT_PORT, AGENT_HOST, () => { console.log(`agent on ${AGENT_HOST}:${AGENT_PORT}${WG_DRY_RUN ? ' (wg dry-run)' : ''}`); r(agentServer); })),
   ]);

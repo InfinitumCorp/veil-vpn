@@ -36,8 +36,9 @@ class MainActivity : ComponentActivity() {
         vpnAsk?.complete(it.resultCode == RESULT_OK)
     }
 
-    private suspend fun askVpnPermission(): Boolean = withContext(Dispatchers.Main) {
-        val intent = VpnService.prepare(this@MainActivity) ?: return@withContext true
+    /** [consent] is Android's IKEv2 profile consent screen; null asks for the WireGuard (VpnService) permission. */
+    private suspend fun askVpnPermission(consent: Intent?): Boolean = withContext(Dispatchers.Main) {
+        val intent = consent ?: VpnService.prepare(this@MainActivity) ?: return@withContext true
         val d = CompletableDeferred<Boolean>().also { vpnAsk = it }
         vpnPermission.launch(intent)
         d.await()

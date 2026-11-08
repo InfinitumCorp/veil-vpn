@@ -131,10 +131,24 @@
       <li><span>Tor over VPN</span><label class="switch"><input type="checkbox" data-set="tor"><span></span><b class="sr">Tor over VPN</b></label></li>
       <li><span>Connect on launch</span><label class="switch"><input type="checkbox" data-set="auto"><span></span><b class="sr">Connect on launch</b></label></li>
       <li><span>Earn $VEIL</span><label class="switch"><input type="checkbox" data-set="earn" checked><span></span><b class="sr">Earn VEIL</b></label></li>
-      <li><span>Protocol</span><select data-set="proto" aria-label="Protocol"><option>WireGuard</option><option>Stealth (WireGuard over TLS)</option><option>IKEv2</option></select></li>
+      <li><span>Protocol <small id="proto-hint">WireGuard: fastest, modern cryptography</small></span><select data-set="proto" aria-label="Protocol"><option value="wireguard">WireGuard</option><option value="ikev2">IKEv2/IPsec</option><option value="openvpn">OpenVPN</option></select></li>
       <li class="wallet-row"><span>FIRM Wallet</span>
         <form id="wallet-form" class="wallet-form"><label class="sr" for="wallet-input">Solana address</label><input id="wallet-input" class="mono" placeholder="Solana address" autocomplete="off" spellcheck="false"><button class="ghost" id="link-wallet" type="submit">Link</button></form></li>
     </ul>
+    <section class="devices" aria-labelledby="h-devices">
+      <h3 id="h-devices">Other devices</h3>
+      <p>Use VEIL on a laptop, iPhone, Mac, PC or router with a standard VPN app or the one built in. A set-up uses the location picked above, lasts 7 days and does not earn $VEIL.</p>
+      <div class="devices-form">
+        <label class="sr" for="dev-proto">Set-up type</label>
+        <select id="dev-proto">
+          <option value="wireguard">WireGuard · .conf file (WireGuard app)</option>
+          <option value="openvpn">OpenVPN · .ovpn file (OpenVPN Connect)</option>
+          <option value="ikev2">IKEv2 · built into iPhone, Mac and Windows</option>
+        </select>
+        <button class="ghost" id="dev-get" type="button">Get set-up</button>
+      </div>
+      <div id="dev-out" class="dev-out" hidden></div>
+    </section>
     <details class="cant-see">
       <summary>What Infinitum can't see</summary>
       <ul>
@@ -144,7 +158,7 @@
         <li><b>Your Wi-Fi.</b> Network checks and alerts run on your phone. The network's name is never read.</li>
         <li><b>Where Tor sends your traffic.</b> With Tor on, our server sees only that you use Tor.</li>
       </ul>
-      <p>We keep an anonymous session, minutes connected, ad view counts, a hashed device ID (one earning account per device) and, if you link one, your wallet address. <a href="https://veil.infinitum.example/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+      <p>We keep an anonymous session, minutes connected, ad view counts, a hashed device ID (one earning account per device) and, if you link one, your wallet address. <a href="https://infinitumveilvpn.app/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
     </details>
   </section>
 </main>

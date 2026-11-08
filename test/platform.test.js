@@ -12,7 +12,7 @@ Object.assign(process.env, {
   NODE_ENV: 'development', TOKEN_SECRET: 'test-token-secret-0123456789abcdef', AGENT_SECRET: 'test-agent-secret-0123456789abcdef',
   ADMIN_KEY: 'test-admin-key-0123456789abcdef', DB_PATH: path.join(dir, 'veil.db'), PORT: '18787',
   NODE_ID: 'local-dev', PROXY_PORT: '19100', AGENT_PORT: '19101', ALLOW_PRIVATE: '1', WG_DRY_RUN: '1',
-  NODES_FILE: path.join(dir, 'nodes.json'), FRAUD_NET_MAX: '4', FRAUD_BLOCK_EMULATORS: '1', TOR_SOCKS: '127.0.0.1:19150',
+  NODES_FILE: path.join(dir, 'nodes.json'), FRAUD_NET_MAX: '4', FRAUD_BLOCK_EMULATORS: '1', TOR_SOCKS: '127.0.0.1:19150', HOOK_PORT: '19102',
 });
 const { writeFileSync } = await import('node:fs');
 // Tracker blocking: the built-in list plus a test list in hosts-file format.
@@ -20,7 +20,8 @@ process.env.BLOCKLIST = [path.join(import.meta.dirname, '..', 'node', 'blocklist
 writeFileSync(path.join(dir, 'extra.txt'), '# test list\n0.0.0.0 tracker.veil-test.example\n0.0.0.0 localhost\n');
 writeFileSync(process.env.NODES_FILE, JSON.stringify([{ id: 'local-dev', city: 'Test', country: 'Here', flag: '🖥️', region: 'global',
   agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 },
-  wg: { endpoint: '127.0.0.1:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true },
+  wg: { endpoint: '127.0.0.1:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true,
+  ikev2: { host: 'vpn.veil-test.example' }, openvpn: { host: 'vpn.veil-test.example', ca: '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----',tlsCrypt: 'TLSCRYPT' } },
   { id: 'no-tor', city: 'Plain', country: 'Here', flag: '🖥️', region: 'global', agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 } }]));
 
 const B = 'http://127.0.0.1:18787';
@@ -160,6 +161,42 @@ test('WireGuard connect registers a peer and returns a config', async () => {
   assert.match(r.body.wireguard.address, /^10\.66\.\d+\.\d+\/32$/);
   assert.equal(r.body.wireguard.allowedIps, '0.0.0.0/0, ::/0');
   assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'wireguard', publicKey: 'nope' } })).status, 400);
+});
+
+test('IKEv2 and OpenVPN logins: listed, accepted by the node hook, bound to a tunnel IP', async () => {
+  const list = (await j('/v1/servers')).body.servers;
+  assert.deepEqual(list.find((x) => x.id === 'local-dev').modes, ['proxy', 'wireguard', 'ikev2', 'openvpn']);
+  assert.deepEqual(list.find((x) => x.id === 'no-tor').modes, ['proxy']);
+  const hook = (p, body) => fetch(`http://127.0.0.1:19102${p}`, { method: 'POST', body }).then((r) => r.status);
+
+  const ik = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'ikev2', block: false } });
+  assert.equal(ik.status, 200, JSON.stringify(ik.body));
+  const { username, password, server, auth } = ik.body.ikev2;
+  assert.match(username, /^v[0-9a-f]{15}$/); assert.equal(password.length, 24);
+  assert.equal(server, 'vpn.veil-test.example'); assert.equal(auth, 'eap-mschapv2');
+  assert.equal((await j('/v1/me', { token })).body.connection.mode, 'ikev2');
+  const login = (u, p) => `${u}\n${p}\n`;
+  assert.equal(await hook('/auth', login(username, password)), 204);
+  assert.equal(await hook('/auth', login(username, 'x'.repeat(24))), 403);
+  assert.equal(await hook('/bind', JSON.stringify({ user: username, ip: '10.67.0.9/32', up: true })), 204);
+  assert.equal(await hook('/bind', JSON.stringify({ user: username, ip: '10.66.0.9', up: true })), 400);   // WireGuard range is the agent's
+  assert.equal((await j('/v1/blocked', { token })).body.connected, true);
+
+  // The same login also works for OpenVPN; a set-up for another device lasts 7 days and keeps the app's lease.
+  const ov = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'openvpn', manual: true } });
+  assert.equal(ov.status, 200, JSON.stringify(ov.body));
+  assert.equal(ov.body.openvpn.username, username); assert.equal(ov.body.openvpn.password, password);
+  assert.ok(ov.body.exp - Date.now() > 6 * 86_400_000);
+  for (const line of ['client', 'remote vpn.veil-test.example 1194 udp', 'remote vpn.veil-test.example 1194 tcp', 'auth-user-pass', '<ca>', '<tls-crypt>', 'TLSCRYPT'])
+    assert.ok(ov.body.openvpn.profile.split('\n').includes(line), line);
+  assert.equal((await j('/v1/me', { token })).body.connection.mode, 'ikev2');
+  assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'no-tor', mode: 'openvpn' } })).body.error, 'openvpn_unavailable');
+  assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'proxy', manual: true } })).status, 400);
+
+  // Disconnecting ends the app's lease; the 7-day set-up still logs in.
+  await j('/v1/disconnect', { method: 'POST', token });
+  assert.equal(await hook('/auth', login(username, password)), 204);
+  assert.equal(await hook('/bind', JSON.stringify({ ip: '10.67.0.9', up: false })), 204);
 });
 
 test('ad views are deduplicated and add estimated revenue', async () => {

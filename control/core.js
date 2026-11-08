@@ -13,7 +13,7 @@
 //
 // Request `req`: { method, path, query: URLSearchParams, header(name), ip }. `ip` is used only as an
 // in-memory rate-limit key and for the daily-keyed network hash in fraud.js; it is never stored.
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, createHmac } from 'node:crypto';
 import { sign } from '../shared/token.js';
 import { createFraud } from './fraud.js';
 import { RATE_PER_MIN, MAX_MIN, REF_PRICE, split, memberShare } from '../shared/economics.js';
@@ -37,6 +37,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const CPM_USD = Number(env('CPM_USD', 2.0));   // estimated revenue per 1,000 views
   const CPC_USD = Number(env('CPC_USD', 0.10));  // estimated revenue per click
   const TOKEN_TTL = Number(env('TOKEN_TTL_MS', 15 * 60_000));
+  const MANUAL_TTL = Number(env('MANUAL_TTL_MS', 7 * 86_400_000));
+  const MODES = ['proxy', 'wireguard', 'ikev2', 'openvpn'];
   const DEV = env('NODE_ENV', 'development') !== 'production';
   for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY })) {
     if (v.length < 24) throw new Error(`${k} must be set to at least 24 characters`);
@@ -88,7 +90,9 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   };
 
   const publicNode = (n) => ({ id: n.id, city: n.city, country: n.country, flag: n.flag, region: n.region,
-    load: health.get(n.id).load, online: health.get(n.id).up, modes: ['proxy', ...(n.wg ? ['wireguard'] : [])], tor: !!n.tor });
+    load: health.get(n.id).load, online: health.get(n.id).up, modes: modesOf(n), tor: !!n.tor });
+  // Protocols a node offers: HTTPS proxy (browsers) always; WireGuard, IKEv2/IPsec and OpenVPN when configured.
+  const modesOf = (n) => ['proxy', ...(n.wg ? ['wireguard'] : []), ...(n.ikev2 ? ['ikev2'] : []), ...(n.openvpn ? ['openvpn'] : [])];
   const nodeById = (id) => NODES.find((n) => n.id === id) || fail(404, 'unknown_server');
 
   // ---------- auth ----------
@@ -108,6 +112,22 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     for (let i = 2; i < 65_000; i++) { const ip = `10.66.${i >> 8}.${i & 255}`; if (!used.has(ip)) return ip; }
     fail(503, 'server_full');
   }
+
+  // IKEv2 (EAP-MSCHAPv2) and OpenVPN logins. Derived from the session, so they stay the same across
+  // reconnects and a saved profile keeps working; the node accepts them only until `exp`.
+  const account = (s, n) => ({
+    user: `v${hash(`acct:${s.id}`).slice(0, 15)}`,
+    pass: createHmac('sha256', TOKEN_SECRET).update(`acct|${s.id}|${n.id}`).digest('base64url').slice(0, 24),
+  });
+  // OpenVPN client profile (OpenVPN Connect, Tunnelblick, openvpn 2.5+). UDP first, TCP as fallback.
+  const ovpnProfile = (n) => {
+    const o = n.openvpn;
+    return ['# VEIL</>™ ' + n.city + ' · OpenVPN', 'client', 'dev tun', 'nobind', 'persist-key', 'persist-tun',
+      ...(o.udp !== false ? [`remote ${o.host} ${o.udp || 1194} udp`] : []), ...(o.tcp !== false ? [`remote ${o.host} ${o.tcp || 1194} tcp`] : []),
+      'resolv-retry infinite', 'remote-cert-tls server', `verify-x509-name ${o.name || o.host} name`, 'auth-user-pass', 'auth-nocache',
+      'data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305', 'auth SHA256', 'tls-version-min 1.2', 'ignore-unknown-option block-outside-dns', 'block-outside-dns', 'verb 3',
+      '<ca>', String(o.ca).trim(), '</ca>', ...(o.tlsCrypt ? ['<tls-crypt>', String(o.tlsCrypt).trim(), '</tls-crypt>'] : []), ''].join('\n');
+  };
 
   const today = async (db, sid) => {
     const t = await db.get('SELECT minutes, last_beat FROM usage WHERE sid = ? AND day = ?', sid, day());
@@ -180,13 +200,24 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       if (tor && !n.tor) fail(400, 'tor_unavailable');
       // Tracker blocking is on unless the user switched it off.
       const block = body.block !== false;
-      const exp = Date.now() + TOKEN_TTL;
-      const mode = body.mode === 'wireguard' ? 'wireguard' : 'proxy';
-      await db.run(`INSERT INTO conns (sid, node, mode, exp) VALUES (?, ?, ?, ?)
+      // "manual": a set-up for another device (a .conf / .ovpn file or IKEv2 details) that lasts 7 days
+      // and earns nothing; it does not replace this device's own connection lease.
+      const manual = body.manual === true;
+      const exp = Date.now() + (manual ? MANUAL_TTL : TOKEN_TTL);
+      const mode = MODES.includes(body.mode) ? body.mode : 'proxy';
+      if (mode !== 'proxy' && !modesOf(n).includes(mode)) fail(400, `${mode}_unavailable`);
+      if (manual && mode === 'proxy') fail(400, 'manual_needs_vpn_protocol');
+      if (!manual) await db.run(`INSERT INTO conns (sid, node, mode, exp) VALUES (?, ?, ?, ?)
         ON CONFLICT (sid) DO UPDATE SET node = excluded.node, mode = excluded.mode, exp = excluded.exp`, s.id, n.id, mode, exp);
 
+      if (mode === 'ikev2' || mode === 'openvpn') {
+        const acct = account(s, n);
+        await agent(n, 'POST', '/accounts', { ...acct, exp, tor, block, manual, protocol: mode });
+        const common = { mode, server: publicNode(n), exp, tor, block, manual };
+        if (mode === 'ikev2') return { ...common, ikev2: { server: n.ikev2.host, remoteId: n.ikev2.remoteId || n.ikev2.host, username: acct.user, password: acct.pass, auth: 'eap-mschapv2', dns: n.ikev2.dns || '10.66.0.1' } };
+        return { ...common, openvpn: { username: acct.user, password: acct.pass, profile: ovpnProfile(n) } };
+      }
       if (mode === 'wireguard') {
-        if (!n.wg) fail(400, 'wireguard_unavailable');
         const pub = String(body.publicKey || '');
         if (!/^[A-Za-z0-9+/]{43}=$/.test(pub)) fail(400, 'bad_public_key');
         const old = await db.get('SELECT node, ip FROM wg_peers WHERE pubkey = ?', pub);
@@ -203,7 +234,11 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
 
     'POST /v1/disconnect': async (db, req) => {
       const s = await auth(db, req);
+      const c = await db.get('SELECT node, mode FROM conns WHERE sid = ?', s.id);
       await db.run('DELETE FROM conns WHERE sid = ?', s.id);
+      // IKEv2 / OpenVPN: this device's login lease ends on that node (set-ups for other devices keep their 7 days).
+      const cn = c && (c.mode === 'ikev2' || c.mode === 'openvpn') && NODES.find((x) => x.id === c.node);
+      if (cn) await agent(cn, 'POST', '/accounts/remove', { user: account(s, cn).user }).catch(() => {});
       for (const p of await db.all('SELECT pubkey, node, ip FROM wg_peers WHERE sid = ?', s.id)) {
         const n = NODES.find((x) => x.id === p.node);
         if (n) await agent(n, 'POST', '/peers/remove', { publicKey: p.pubkey, ip: String(p.ip) }).catch(() => {});
@@ -244,6 +279,7 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       const p = new URLSearchParams({ sid: hash(s.id).slice(0, 16) });
       const wg = await db.get('SELECT ip FROM wg_peers WHERE sid = ? AND node = ?', s.id, n.id);
       if (wg) p.set('ip', String(wg.ip));
+      if (c.mode === 'ikev2' || c.mode === 'openvpn') p.set('acct', account(s, n).user);
       try { const r = await agent(n, 'GET', `/blocked?${p}`); return { blocked: Number(r.blocked) || 0, connected: true }; }
       catch { return { blocked: 0, connected: true }; }
     },
