@@ -18,7 +18,7 @@ const out = p('dist/extension');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(p('dist/extension/icons'), { recursive: true });
 for (const f of ['manifest.json', 'background.js']) cpSync(p('extension', f), path.join(out, f));
-for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg']) cpSync(p('veil-vpn', f), path.join(out, f));
+for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg', 'firm-suite.js', 'firm-suite.css']) cpSync(p('veil-vpn', f), path.join(out, f));
 writeFileSync(path.join(out, 'config.js'), `export const CONTROL_URL = ${JSON.stringify(CONTROL_URL)};\n`);
 const html = readFileSync(p('veil-vpn/index.html'), 'utf8')
   .replace(/<link rel="manifest"[^>]*>\n?/, '')
@@ -78,7 +78,7 @@ writeFileSync(path.join(ff, 'manifest.json'), JSON.stringify(mf, null, 2) + '\n'
 const www = p('android/app/src/main/assets/www');
 rmSync(www, { recursive: true, force: true });
 mkdirSync(www, { recursive: true });
-for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg']) cpSync(p('veil-vpn', f), path.join(www, f));
+for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg', 'firm-suite.js', 'firm-suite.css']) cpSync(p('veil-vpn', f), path.join(www, f));
 writeFileSync(path.join(www, 'index.html'), html);
 
 // 5. Landing page: site/ to dist/site, ready for any static host. index.html is written without
