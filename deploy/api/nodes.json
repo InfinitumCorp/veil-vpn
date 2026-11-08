@@ -1,0 +1,31 @@
+[
+  {
+    "id": "use2-1",
+    "city": "Columbus",
+    "country": "United States",
+    "flag": "🇺🇸",
+    "region": "na",
+    "agentUrl": "https://vpn-use2.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-use2.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-use2.infinitumveilvpn.app:51820",
+      "publicKey": "QjY4UA1hDdZCL21IJ2ezX/yXxGMqX6f7JkyM9BQSzy8=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-use2.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-use2.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhzCCAS2gAwIBAgIUUqz+r+ipbyJ4BuZ6j+yFZ/IykSQwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCB1c2UyLTEgQ0EwHhcNMjYxMTA4MTYyMzIzWhcNMzYx\nMTA1MTYyMzIzWjAZMRcwFQYDVQQDDA5WRUlMIHVzZTItMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABFwaQHxuPzDnMrTKmnOWPlMbJzqPewlQgSnnIpLaLmrZ\ntskpY8vhMN2GlnnHb34U/KX+LTMALxxJorc3esnO/wGjUzBRMB0GA1UdDgQWBBT1\n+MWtENaAJlGJGRXvhWT32g2u1TAfBgNVHSMEGDAWgBT1+MWtENaAJlGJGRXvhWT3\n2g2u1TAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIChSrbU4dDlG\nfyokx2Qeznlvi9C2Ztn3zWPd/g79RrXhAiEAjSpuPvP1M0R1SeNZvVWMXW46GX3r\nKpTV2PIjR+XLH8c=\n-----END CERTIFICATE-----",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n17017f66b1f6925eeaba622fee087ff4\nd32f5cc5385907f261571972c8699781\n9bf63938bbde121ee0ad5af28781a891\ne239f179f28f723bf63855d515f245a8\n35fad1c0c8c46a62c45f45a492060806\ne652cb52b6b3d5ca86ba497a90ba7461\n1b79e3b1fd389dfb96d7768724e5ea0a\n7cb88e6cbbecabbcb16ef17f640e9f76\nafa466de5348e86715296a081414710b\n21ccfeabc6bc8aa802aa40170d90f4b7\n66937cfeebd319cbf214912fc14a8b66\n6b302199f255bc367883b72cf7183391\n81552fe436804d88074beb1b73a12349\n796b5916793df6d8d899f5646e9a3b2a\n1cc64584f08ac1c8bb805b96951dd2bf\ncf131a344f8603af5bba70a1dfbb507f\n-----END OpenVPN Static key V1-----"
+    }
+  }
+]

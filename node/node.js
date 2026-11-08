@@ -224,6 +224,8 @@ function persist() {
   })().catch((e) => console.error(`accounts: ${e.message}`)).finally(() => { saving = null; });
   return saving;
 }
+// On start, rewrite both files so logins that ran out (or were removed) while the agent was down stop working.
+if (ACCOUNTS_FILE || SWAN_SECRETS) persist();
 setInterval(() => {
   let changed = false;
   for (const [u, a] of accounts) if (!validAcct(a)) { accounts.delete(u); changed = true; }

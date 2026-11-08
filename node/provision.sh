@@ -190,7 +190,11 @@ if [ "$IKEV2" = 1 ]; then
 set -e
 L=/etc/letsencrypt/live/${DOMAIN}
 install -m 644 \$L/cert.pem /etc/swanctl/x509/veil.pem
-install -m 644 \$L/chain.pem /etc/swanctl/x509ca/veil-chain.pem
+# strongSwan reads one certificate per file: split the chain (intermediate + cross-signs up to
+# ISRG Root X1) so clients that only trust X1 (older Android) can still build the path.
+rm -f /etc/swanctl/x509ca/veil-chain*.pem
+awk '/BEGIN CERTIFICATE/{n++} n{print > "/etc/swanctl/x509ca/veil-chain" n ".pem"}' \$L/chain.pem
+chmod 644 /etc/swanctl/x509ca/veil-chain*.pem
 install -m 600 \$L/privkey.pem /etc/swanctl/private/veil.key
 swanctl --load-creds --noprompt >/dev/null 2>&1 || true
 EOF
