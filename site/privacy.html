@@ -1,78 +1,25 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>VEIL&lt;/&gt;™ Privacy Policy</title>
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<style>
-:root{--paper:#fff;--ink:#111820;--muted:#52606b;--line:#d6dce1;--accent:#2454dd;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#0c1116;--ink:#e8edf1;--muted:#97a4ae;--line:#26313a;--accent:#6f93ff;color-scheme:dark}}
-:root[data-theme="dark"]{--paper:#0c1116;--ink:#e8edf1;--muted:#97a4ae;--line:#26313a;--accent:#6f93ff;color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
-main{max-width:720px;margin:0 auto;padding-block:48px 72px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
-a{color:inherit}
-.code{color:var(--accent)}
-h1{font-weight:400;font-size:clamp(36px,6vw,56px);line-height:1;letter-spacing:-.035em;margin:28px 0 12px}
-h2{font-weight:400;font-size:24px;letter-spacing:-.015em;margin:40px 0 10px;padding-top:20px;border-top:1px solid var(--line)}
-p,li{max-width:66ch}
-ul{padding-left:20px}
-li{margin:6px 0}
-.muted{color:var(--muted);font-size:14px}
-</style>
-</head>
-<body>
-<main>
-  <a href="index.html" style="text-decoration:none">VEIL<span class="code">&lt;/&gt;</span>™</a>
-  <h1>Privacy policy</h1>
-  <p class="muted">Applies to the VEIL&lt;/&gt;™ Android app, the Chrome, Edge and Firefox extensions, and VEIL servers. Last updated 6 November 2026.</p>
-
-  <h2>The short version</h2>
-  <p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You do not create an account.</p>
-
-  <h2>What we never collect</h2>
-  <ul>
-    <li>Websites, domains, URLs or DNS queries.</li>
-    <li>Traffic contents or connection logs (when you connected, from where, to where).</li>
-    <li>Your IP address. The control server holds it in memory, for at most an hour, to stop abuse (rate limits), and never writes it to disk.</li>
-    <li>Your name, email, phone number, contacts, location or files.</li>
-  </ul>
-  <p>Our servers keep their system logs in memory only, so they are gone after a restart.</p>
-
-  <h2>What we store, and why</h2>
-  <ul>
-    <li><strong>An anonymous session.</strong> A random ID and key, created by the app, so the app can connect and count your rewards.</li>
-    <li><strong>A hashed device ID.</strong> The app sends a device identifier; we store only a keyed hash of it. It lets us allow one earning account per device (fraud prevention). We also note the platform (Android, Chrome or Firefox), and we flag a session for review if it comes from an emulator, a rooted phone, or more than one device.</li>
-    <li><strong>A network tag, for 3 days.</strong> To stop many accounts earning from one connection, we store a keyed hash of the first part of your network address (the /24 or /48 block, not your address), with a key that changes every day. It is deleted after 3 days.</li>
-    <li><strong>Reward counts.</strong> The number of minutes you were connected each day, and how many ads were viewed or clicked in your session (counts only; no ad or site details).</li>
-    <li><strong>Your WireGuard public key</strong> (Android), so the server can let your device in. The private key never leaves your phone and is encrypted there with the Android Keystore.</li>
-    <li><strong>A Solana wallet address</strong>, only if you link one to claim $VEIL. You can unlink it in Settings.</li>
-  </ul>
-
-  <h2>Tracker blocking</h2>
-  <p>Tracker blocking is on by default and can be switched off in Settings. Our server checks each website name your device looks up against a list of ad, analytics and data-collection services, and stops the listed ones. The check happens in memory as the request passes. We keep one number per connection, how many were blocked today, in memory only; it is reset every day and never includes the names. The list combines VEIL's own entries with a public list (StevenBlack/hosts, MIT licence). VEIL's own in-app ad is not affected, because it does not track you.</p>
-
-  <h2>Unsafe network alerts (Android)</h2>
-  <p>When your phone joins a Wi-Fi network while VEIL is off, the app can show a notification, with a stronger warning for open (unencrypted) networks and networks with a sign-in page. The check uses Android's network information on your phone. The app does not read the network's name, and nothing about the network is sent to us. You can switch alerts off in Settings.</p>
-
-  <h2>Ads</h2>
-  <p>VEIL shows one small ad inside the app. It is picked only by the region of the server you chose. We do not use tracking ad networks, build a profile, or share anything about you with advertisers.</p>
-
-  <h2>Tor over VPN</h2>
-  <p>When you switch on Tor over VPN, our server sends your traffic into the Tor network. Our server sees that your device uses Tor, but not where the traffic goes after Tor. Tor relays are run by volunteers and are not under our control.</p>
-
-  <h2>Sharing</h2>
-  <p>We do not sell or share personal data. When you claim $VEIL, your wallet address and amount are sent to the Solana network, which is public by design.</p>
-
-  <h2>Keeping and deleting data</h2>
-  <p>Network tags are deleted after 3 days. Sessions and reward records are kept while you use VEIL, so your rewards can be paid. To delete your session, uninstall the app or remove the extension (this removes your session key, so the account can no longer be used), or email us with your session details and we will delete the server records.</p>
-
-  <h2>Children</h2>
-  <p>VEIL is not directed at children under 13, and token rewards are for adults only.</p>
-
-  <h2>Changes and contact</h2>
-  <p>If this policy changes, we update this page and the date above. Questions: <span style="font-family:ui-monospace,Menlo,Consolas,monospace">info@theinfinitumcorporation.com</span>.</p>
-</main>
-</body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>VEIL&lt;/&gt;™ VPN Privacy Policy | Infinitum Corporation</title><meta name="description" content="What VEIL&lt;/&gt;™ VPN collects, what it never collects, and why."><link rel="canonical" href="https://infinitumveilvpn.app/privacy"><meta name="theme-color" content="#f4f4f1"><link rel="icon" href="/brand/icon-white-bg.png"><link rel="stylesheet" href="/assets/site.css"><!-- seo --><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"><meta property="og:type" content="website"><meta property="og:site_name" content="Infinitum Corporation"><meta property="og:locale" content="en_US"><meta property="og:title" content="VEIL&amp;lt;/&amp;gt;™ VPN Privacy Policy"><meta property="og:description" content="What VEIL&lt;/&gt;™ VPN collects, what it never collects, and why."><meta property="og:url" content="https://infinitumveilvpn.app/privacy"><meta property="og:image" content="https://infinitumveilvpn.app/brand/og-card.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:site" content="@infinitumCorpUS"><meta name="twitter:title" content="VEIL&amp;lt;/&amp;gt;™ VPN Privacy Policy"><meta name="twitter:description" content="What VEIL&lt;/&gt;™ VPN collects, what it never collects, and why."><meta name="twitter:image" content="https://infinitumveilvpn.app/brand/og-card.png"><link rel="apple-touch-icon" href="/brand/apple-touch-icon.png"><!-- /seo --></head><body id="top"><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="https://infinitumcorporation.ai/" aria-label="Infinitum Corporation home"><img src="/brand/horizontal-white-bg.png" alt="Infinitum Corporation" width="188" height="28"><sup class="logo-mark">®</sup></a><nav class="top-navigation" aria-label="Main navigation"><a href="https://infinitumcorporation.ai/#services">Services</a><a href="https://infinitumcorporation.ai/#products">Products</a><a href="https://infinitumcorporation.ai/#warfare">Warfare &amp; Defense</a><a href="https://infinitumcorporation.ai/#portfolio">Research & Clients</a><a href="https://app.infinitumcorporation.ai/">Downloads</a></nav><a class="contact-button" href="https://infinitumcorporation.ai/contact">Get in touch <span aria-hidden="true">↗︎</span></a></header><main id="main"><div class="page-transition"><section class="page-heading section"><div class="section-label"><span class="eyebrow">VEIL&lt;/&gt; VPN / LEGAL</span><span class="eyebrow">INFINITUM CORPORATION</span></div><h1>Privacy policy</h1><p>Applies to the VEIL&lt;/&gt;<sup class="tm">™</sup> VPN Android app, the Chrome, Edge and Firefox extensions, and VEIL servers. It adds to the <a class="text-link" href="https://infinitumcorporation.ai/privacy-policy" target="_blank" rel="noopener">Infinitum Corporation privacy policy <span aria-hidden="true">↗︎</span><span class="visually-hidden"> (opens in a new tab)</span></a>.</p><p class="legal-updated">Last updated November 9, 2026</p></section><section class="section legal-body"><section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You do not create an account.</p></section>
+<section class="legal-part"><h2><span>02</span>What we never collect</h2><ul>
+<li>Websites, domains, URLs or DNS queries.</li>
+<li>Traffic contents or connection logs (when you connected, from where, to where).</li>
+<li>Your IP address. The control server holds it in memory, for at most an hour, to stop abuse (rate limits), and never writes it to disk.</li>
+<li>Your name, email, phone number, contacts, location or files.</li>
+</ul><p>Our servers keep their system logs in memory only, so they are gone after a restart.</p></section>
+<section class="legal-part"><h2><span>03</span>What we store, and why</h2><ul>
+<li><strong>An anonymous session.</strong> A random ID and key, created by the app, so the app can connect and count your rewards.</li>
+<li><strong>A hashed device ID.</strong> The app sends a device identifier; we store only a keyed hash of it. It lets us allow one earning account per device (fraud prevention). We also note the platform (Android, Chrome or Firefox), and we flag a session for review if it comes from an emulator, a rooted phone, or more than one device.</li>
+<li><strong>A network tag, for 3 days.</strong> To stop many accounts earning from one connection, we store a keyed hash of the first part of your network address (the /24 or /48 block, not your address), with a key that changes every day. It is deleted after 3 days.</li>
+<li><strong>Reward counts.</strong> The number of minutes you were connected each day, and how many ads were viewed or clicked in your session (counts only; no ad or site details).</li>
+<li><strong>Your WireGuard public key</strong>, so the server can let your device in. The private key never leaves your device; on Android it is encrypted with the Android Keystore.</li>
+<li><strong>An IKEv2 or OpenVPN login</strong>, if you use one of those protocols. The username and password are derived from your session; the VPN server keeps them only while they are valid (15 minutes at a time in the app, 7 days for another device), then deletes them.</li>
+<li><strong>A Solana wallet address</strong>, only if you link one to claim $VEIL. You can unlink it in Settings.</li>
+</ul></section>
+<section class="legal-part"><h2><span>04</span>Tracker blocking</h2><p>Tracker blocking is on by default and can be switched off in Settings. Our server checks each website name your device looks up against a list of ad, analytics and data-collection services, and stops the listed ones. The check happens in memory as the request passes. We keep one number per connection, how many were blocked today, in memory only; it is reset every day and never includes the names. The list combines VEIL's own entries with a public list (StevenBlack/hosts, MIT licence). VEIL's own in-app ad is not affected, because it does not track you.</p></section>
+<section class="legal-part"><h2><span>05</span>Unsafe network alerts (Android)</h2><p>When your phone joins a Wi-Fi network while VEIL is off, the app can show a notification, with a stronger warning for open (unencrypted) networks and networks with a sign-in page. The check uses Android's network information on your phone. The app does not read the network's name, and nothing about the network is sent to us. You can switch alerts off in Settings.</p></section>
+<section class="legal-part"><h2><span>06</span>Ads</h2><p>VEIL shows one small ad inside the app. It is picked only by the region of the server you chose. We do not use tracking ad networks, build a profile, or share anything about you with advertisers.</p></section>
+<section class="legal-part"><h2><span>07</span>Tor over VPN</h2><p>When you switch on Tor over VPN, our server sends your traffic into the Tor network. Our server sees that your device uses Tor, but not where the traffic goes after Tor. Tor relays are run by volunteers and are not under our control.</p></section>
+<section class="legal-part"><h2><span>08</span>Sharing</h2><p>We do not sell or share personal data. When you claim $VEIL, your wallet address and amount are sent to the Solana network, which is public by design.</p></section>
+<section class="legal-part"><h2><span>09</span>Keeping and deleting data</h2><p>Network tags are deleted after 3 days. Sessions and reward records are kept while you use VEIL, so your rewards can be paid. To delete your session, uninstall the app or remove the extension (this removes your session key, so the account can no longer be used), or email us with your session details and we will delete the server records.</p></section>
+<section class="legal-part"><h2><span>10</span>Children</h2><p>VEIL is not directed at children under 13, and token rewards are for adults only.</p></section>
+<section class="legal-part"><h2><span>11</span>Changes and contact</h2><p>If this policy changes, we update this page and the date above. Questions: <a href="mailto:info@theinfinitumcorporation.com">info@theinfinitumcorporation.com</a>.</p></section>
+</section></div></main></main><footer class="site-footer"><div class="footer-invite"><p class="eyebrow">THE NEXT CONVERSATION</p><h2>AI-powered.<br>Blockchain-governed<sup class="tm">™</sup>.</h2><p>AI-enhanced services and blockchain-governed products for business and government.</p><p class="footer-security" data-lingo="security">Military-grade security for high-security civilians and businesses. The engineering that protects ODIN°<sup class="tm">™</sup> protects every civilian and business product we make, while military editions stay reserved for authorized defense users.</p><a href="https://infinitumcorporation.ai/contact" class="button">Start a conversation <span aria-hidden="true">↗︎</span></a></div><div class="footer-columns"><div><a class="brand" href="https://infinitumcorporation.ai/" aria-label="Infinitum Corporation home"><img src="/brand/horizontal-white-bg.png" alt="Infinitum Corporation" width="190" height="28" loading="lazy"><sup class="logo-mark">®</sup></a><p>1629 K Street NW, Suite 300<br>Washington, D.C.</p><p class="address-social"><a class="social-link" href="https://x.com/infinitumCorpUS" target="_blank" rel="noopener" aria-label="Infinitum on X (opens in a new tab)"><span class="social-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span></a><a class="social-link" href="https://github.com/InfinitumCorp" target="_blank" rel="noopener" aria-label="Infinitum on GitHub (opens in a new tab)"><span class="social-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></span></a><a class="social-link" href="https://www.instagram.com/infinitumcorporation" target="_blank" rel="noopener" aria-label="Infinitum on Instagram (opens in a new tab)"><span class="social-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.3"/></svg></span></a></p></div><nav aria-label="Footer navigation"><a href="https://infinitumcorporation.ai/about">About</a><a href="https://infinitumcorporation.ai/capabilities">Services</a><a href="https://infinitumcorporation.ai/products">Products</a><a href="https://infinitumcorporation.ai/security-research">Security Research</a><a href="https://infinitumcorporation.ai/insights">Insights</a><a href="https://infinitumcorporation.ai/press">Press</a><a href="https://infinitumcorporation.ai/careers">Careers</a><a href="https://infinitumcorporation.ai/tokens">Tokens</a><a href="https://app.infinitumcorporation.ai/">Downloads</a><a href="https://infinitum-academy.whop.site/" target="_blank" rel="noopener">School<span aria-hidden="true">↗︎</span><span class="visually-hidden"> (opens in a new tab)</span></a><a href="https://infinitumdefense.com/" target="_blank" rel="noopener">Defense<span aria-hidden="true">↗︎</span><span class="visually-hidden"> (opens in a new tab)</span></a></nav><div><p class="eyebrow">CONNECT</p><a href="mailto:info@theinfinitumcorporation.com">info@theinfinitumcorporation.com</a><br><a href="tel:+12026810120">(202) 681-0120</a></div></div><div class="footer-bottom"><span>© 2026 Infinitum Corporation</span><span class="legal-links"><a href="https://infinitumcorporation.ai/privacy-policy">Privacy</a><a href="https://infinitumcorporation.ai/terms-of-use">Terms</a><a href="https://infinitumcorporation.ai/legal/open-source">Open source</a><a href="https://infinitumcorporation.ai/investor-relations">Investors</a><a href="https://infinitumcorporation.ai/supplier-relations">Suppliers</a><a href="https://infinitumcorporation.ai/site-map">Site map</a></span><a href="#top">Back to top ↑</a></div></footer><script src="/assets/site.js" defer></script><script src="/assets/motion.js" defer></script></body></html>

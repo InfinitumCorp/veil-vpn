@@ -1,0 +1,26 @@
+<!-- VEIL</> VPN privacy policy text. scripts/product-site.mjs puts it into site/privacy.html. -->
+<!-- updated: Last updated November 9, 2026 -->
+<section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You do not create an account.</p></section>
+<section class="legal-part"><h2><span>02</span>What we never collect</h2><ul>
+<li>Websites, domains, URLs or DNS queries.</li>
+<li>Traffic contents or connection logs (when you connected, from where, to where).</li>
+<li>Your IP address. The control server holds it in memory, for at most an hour, to stop abuse (rate limits), and never writes it to disk.</li>
+<li>Your name, email, phone number, contacts, location or files.</li>
+</ul><p>Our servers keep their system logs in memory only, so they are gone after a restart.</p></section>
+<section class="legal-part"><h2><span>03</span>What we store, and why</h2><ul>
+<li><strong>An anonymous session.</strong> A random ID and key, created by the app, so the app can connect and count your rewards.</li>
+<li><strong>A hashed device ID.</strong> The app sends a device identifier; we store only a keyed hash of it. It lets us allow one earning account per device (fraud prevention). We also note the platform (Android, Chrome or Firefox), and we flag a session for review if it comes from an emulator, a rooted phone, or more than one device.</li>
+<li><strong>A network tag, for 3 days.</strong> To stop many accounts earning from one connection, we store a keyed hash of the first part of your network address (the /24 or /48 block, not your address), with a key that changes every day. It is deleted after 3 days.</li>
+<li><strong>Reward counts.</strong> The number of minutes you were connected each day, and how many ads were viewed or clicked in your session (counts only; no ad or site details).</li>
+<li><strong>Your WireGuard public key</strong>, so the server can let your device in. The private key never leaves your device; on Android it is encrypted with the Android Keystore.</li>
+<li><strong>An IKEv2 or OpenVPN login</strong>, if you use one of those protocols. The username and password are derived from your session; the VPN server keeps them only while they are valid (15 minutes at a time in the app, 7 days for another device), then deletes them.</li>
+<li><strong>A Solana wallet address</strong>, only if you link one to claim $VEIL. You can unlink it in Settings.</li>
+</ul></section>
+<section class="legal-part"><h2><span>04</span>Tracker blocking</h2><p>Tracker blocking is on by default and can be switched off in Settings. Our server checks each website name your device looks up against a list of ad, analytics and data-collection services, and stops the listed ones. The check happens in memory as the request passes. We keep one number per connection, how many were blocked today, in memory only; it is reset every day and never includes the names. The list combines VEIL's own entries with a public list (StevenBlack/hosts, MIT licence). VEIL's own in-app ad is not affected, because it does not track you.</p></section>
+<section class="legal-part"><h2><span>05</span>Unsafe network alerts (Android)</h2><p>When your phone joins a Wi-Fi network while VEIL is off, the app can show a notification, with a stronger warning for open (unencrypted) networks and networks with a sign-in page. The check uses Android's network information on your phone. The app does not read the network's name, and nothing about the network is sent to us. You can switch alerts off in Settings.</p></section>
+<section class="legal-part"><h2><span>06</span>Ads</h2><p>VEIL shows one small ad inside the app. It is picked only by the region of the server you chose. We do not use tracking ad networks, build a profile, or share anything about you with advertisers.</p></section>
+<section class="legal-part"><h2><span>07</span>Tor over VPN</h2><p>When you switch on Tor over VPN, our server sends your traffic into the Tor network. Our server sees that your device uses Tor, but not where the traffic goes after Tor. Tor relays are run by volunteers and are not under our control.</p></section>
+<section class="legal-part"><h2><span>08</span>Sharing</h2><p>We do not sell or share personal data. When you claim $VEIL, your wallet address and amount are sent to the Solana network, which is public by design.</p></section>
+<section class="legal-part"><h2><span>09</span>Keeping and deleting data</h2><p>Network tags are deleted after 3 days. Sessions and reward records are kept while you use VEIL, so your rewards can be paid. To delete your session, uninstall the app or remove the extension (this removes your session key, so the account can no longer be used), or email us with your session details and we will delete the server records.</p></section>
+<section class="legal-part"><h2><span>10</span>Children</h2><p>VEIL is not directed at children under 13, and token rewards are for adults only.</p></section>
+<section class="legal-part"><h2><span>11</span>Changes and contact</h2><p>If this policy changes, we update this page and the date above. Questions: <a href="mailto:info@theinfinitumcorporation.com">info@theinfinitumcorporation.com</a>.</p></section>

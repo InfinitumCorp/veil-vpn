@@ -85,9 +85,11 @@ writeFileSync(path.join(www, 'index.html'), html);
 // the document wrapper (so it can also be published as a page preview); add it here.
 const siteOut = p('dist/site');
 rmSync(siteOut, { recursive: true, force: true });
-cpSync(p('site'), siteOut, { recursive: true });
-writeFileSync(path.join(siteOut, 'index.html'), '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+// site/ is written by scripts/product-site.mjs (shared Infinitum layout); privacy-body.html is its source text.
+cpSync(p('site'), siteOut, { recursive: true, filter: (f) => path.basename(f) !== 'privacy-body.html' });
+const index = readFileSync(p('site/index.html'), 'utf8');
+if (!/^<!doctype/i.test(index)) writeFileSync(path.join(siteOut, 'index.html'), '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
   + '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n'
-  + readFileSync(p('site/index.html'), 'utf8') + '\n</body>\n</html>\n');
+  + index + '\n</body>\n</html>\n');
 
 console.log(`Built dist/extension, dist/firefox (control: ${CONTROL_URL}), dist/site and android/app/src/main/assets/www`);

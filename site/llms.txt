@@ -1,0 +1,7 @@
+# VEIL</>™ VPN
+
+> VEIL</>™ VPN is Infinitum's free VPN for Android, Chrome, Edge and Firefox: WireGuard, IKEv2 and OpenVPN, no logs, tracker blocking and Tor over VPN, paid for by privacy-safe ads, with 50–65% of the ad revenue shared with the people who use it.
+
+- [Privacy policy](https://infinitumveilvpn.app/privacy)
+- [All Infinitum apps](https://app.infinitumcorporation.ai/)
+- [Infinitum Corporation](https://infinitumcorporation.ai/)
