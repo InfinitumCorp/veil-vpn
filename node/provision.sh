@@ -60,6 +60,14 @@ sysctl --system >/dev/null
 systemctl enable --now wg-quick@wg0
 
 echo "==> Firewall and NAT"
+# Oracle Cloud's Ubuntu images ship iptables rules that reject everything but SSH. They would sit next to
+# VEIL's nftables rules and block the VPN ports, so they are removed (kept as rules.v4.oracle).
+if [ -f /etc/iptables/rules.v4 ] && grep -q "icmp-host-prohibited" /etc/iptables/rules.v4; then
+  systemctl disable --now netfilter-persistent 2>/dev/null || true
+  for t in iptables ip6tables; do $t -P INPUT ACCEPT; $t -P FORWARD ACCEPT; $t -F; $t -X; done
+  mv /etc/iptables/rules.v4 /etc/iptables/rules.v4.oracle
+  [ -f /etc/iptables/rules.v6 ] && mv /etc/iptables/rules.v6 /etc/iptables/rules.v6.oracle
+fi
 cat > /etc/nftables.conf <<EOF
 flush ruleset
 table inet veil {
