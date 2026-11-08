@@ -8,8 +8,8 @@ Ad revenue is pooled with the community and paid out in $VEIL.
 | Folder | What it is | Status |
 |---|---|---|
 | `control/` | Control API (`core.js`): anonymous sessions, server list, VPN credentials, reward minutes, ads, revenue, daily pool payouts. `server.js` runs it on Node + SQLite | Working, tested |
-| `deploy/api/` | The same control API as a Cloudflare Worker on Supabase Postgres (schema `veil_vpn`) | Built and tested (Postgres + Workers runtime), not deployed yet |
-| `supabase/migrations/` | Postgres schema for the control API | Applied to the Infinitum Corp project |
+| `deploy/api/` | The same control API as a Cloudflare Worker on Supabase Postgres (schema `veil_vpn`) | Live at https://api.infinitumveilvpn.app (no VPN servers listed yet) |
+| `supabase/migrations/` | Postgres schema and the `veil_api` database login for the control API | Applied to the Infinitum Corp project |
 | `node/` | VPN node: authenticated HTTPS proxy for browsers + WireGuard peer agent; `provision.sh` sets up a fresh Ubuntu server | Working, tested (WireGuard calls run in dry-run off Linux) |
 | `extension/` | Chrome / Edge / Firefox extension (Manifest V3) that routes browser traffic through a node | Working, tested in Chromium and Firefox |
 | `site/` | Public landing page and privacy policy (`npm run build` writes `dist/site`) | Ready to host; store links still empty |
@@ -207,9 +207,14 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   `deploy/api/src/pg.js` turns it into Postgres (`$n` placeholders, `veil_vpn.` table names).
 - **Access.** Every `veil_vpn` table has RLS on with no policies and is revoked from `anon` and
   `authenticated`: only the Worker's database connection can read or write it. No Supabase key goes to clients.
-- **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`, and
-  `DATABASE_URL` (Supabase dashboard → Connect → Transaction pooler, port 6543). For connection pooling, create a
-  Hyperdrive config and bind it as `HYPERDRIVE`; the Worker prefers it over `DATABASE_URL`.
+- **Database login.** The Worker connects as `veil_api` (`supabase/migrations/20261108_veil_api_role.sql`), which can
+  read and write the `veil_vpn` tables and nothing else. Its password exists only in the Hyperdrive config
+  `veil-vpn-db` (Supabase session pooler, `aws-1-eu-west-1.pooler.supabase.com:5432`), bound as `HYPERDRIVE`. To
+  rotate it, set a new password on the role and update the Hyperdrive config. Without Hyperdrive, a direct
+  `DATABASE_URL` hits the Workers subrequest limit, so keep Hyperdrive.
+- **Cloudflare Access.** The account's "All Workers" Access app gates every Worker; the "VEIL VPN API (public)" app
+  bypasses it for `api.infinitumveilvpn.app` only. The landing page stays gated until it is made public.
+- **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`.
 - **Vars:** `NODES` is the server list (same JSON as `control/nodes.json`), empty until a VPN server exists.
 - **Cron:** hourly purge of network tags older than 3 days.
 - **Memory-only state** (node health, rate limits, ad-event dedupe) is per Worker isolate. The fraud caps that
