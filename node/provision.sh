@@ -2,6 +2,8 @@
 # Provisions one VEIL</>™ node on a fresh Ubuntu 24.04 server.
 # Usage (as root):
 #   NODE_ID=zrh-1 DOMAIN=zrh-1.vpn.example.com TOKEN_SECRET=... AGENT_SECRET=... CONTROL_IP=203.0.113.10 bash provision.sh
+# With the control API on Cloudflare Workers, set CONTROL_IP to Cloudflare's ranges, comma-separated
+# (https://www.cloudflare.com/ips-v4).
 # Add TOR=1 to also offer Tor over VPN from this node (users switch it on in Settings).
 # Tracker blocking is on for every node: VPN clients' DNS goes through the VEIL filter on 10.66.0.1:53,
 # which answers "no such domain" for listed trackers and passes the rest to a private unbound resolver.
@@ -91,7 +93,7 @@ table inet veil {
     meta mark 0x766c tcp dport 53 accept
     meta mark 0x766c ip saddr @tor_peers tcp dport 9040 accept   # Tor transparent proxy
     meta mark 0x766c ip saddr @tor_peers udp dport 9053 accept   # Tor DNS
-    ip saddr ${CONTROL_IP} tcp dport 9101 accept   # agent API, control server only
+    ip saddr { ${CONTROL_IP} } tcp dport 9101 accept   # agent API, control server only (one IP or a comma list of ranges)
   }
   chain forward {
     type filter hook forward priority 0; policy drop;
