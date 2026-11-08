@@ -1,15 +1,12 @@
 /* Infinitum design system: white, ink, hairline rules, regular-weight Helvetica, tight display type. */
 :root{
-  --ink:#111820;--muted:#52606b;--grey:#7b8287;--line:#d6dce1;--accent:#2454dd;--paper:#fff;
-  --ok:#14866d;--warn:#b4471d;
-  --s2:#5b7fe6;--s3:#93abef;--s4:#c3d1f6;--s5:#111820;
+  /* Clean white/black: black ink on white paper, greys for structure, one dark red for errors. */
+  --ink:#000;--muted:#555;--grey:#777;--line:#e4e4e4;--accent:#000;--paper:#fff;
+  --ok:#000;--warn:#b42318;
+  --s2:#444;--s3:#888;--s4:#bbb;--s5:#000;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ink:#e8edf1;--muted:#97a4ae;--grey:#6c7780;--line:#26313a;--accent:#6f93ff;--paper:#0c1116;
-  --ok:#3fc7a2;--warn:#ff8a5c;--s2:#4e6fd0;--s3:#3a54a0;--s4:#2a3b6e;--s5:#e8edf1;color-scheme:dark}}
-:root[data-theme="dark"]{--ink:#e8edf1;--muted:#97a4ae;--grey:#6c7780;--line:#26313a;--accent:#6f93ff;--paper:#0c1116;
-  --ok:#3fc7a2;--warn:#ff8a5c;--s2:#4e6fd0;--s3:#3a54a0;--s4:#2a3b6e;--s5:#e8edf1;color-scheme:dark}
+
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
