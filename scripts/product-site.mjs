@@ -2,7 +2,7 @@
 // (white, quiet, Helvetica Neue, one coloured dot, top bar with Apps, centred column, pill links, footer).
 // No inline scripts or styles in the pages: site/veil.css and site/veil.js. Re-run after editing the text here
 // or site/privacy-body.html:  node scripts/product-site.mjs
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { MAX_DAY, RATE_PER_MIN, TIERS } from '../veil-vpn/economics.js';
 
@@ -49,6 +49,8 @@ function page({ route = '/', title, desc, body, cls = '', robots = 'index, follo
 <meta property="og:type" content="website"><meta property="og:site_name" content="VEIL</>™ VPN"><meta property="og:title" content="${attr(title)}"><meta property="og:description" content="${attr(desc)}"><meta property="og:url" content="${ORIGIN}${route}">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/veil.css">
+<link rel="stylesheet" href="/i18n/i18n.css">
+<script type="module" src="/i18n/start.js"></script>
 </head>
 <body class="${cls}">
 ${topbar}
@@ -218,6 +220,9 @@ const js = `// Apps menu and the panels under the downloads (one open at a time;
 
 // ---- write ----
 mkdirSync(out, { recursive: true });
+// Interface language (@infinitum/i18n), the same catalogs as the app (veil-vpn/i18n).
+mkdirSync(path.join(out, 'i18n'), { recursive: true });
+for (const f of ['i18n.js', 'i18n.css', 'start.js', 'catalogs.js']) copyFileSync(path.join(root, 'veil-vpn/i18n', f), path.join(out, 'i18n', f));
 writeFileSync(path.join(out, 'veil.css'), css);
 writeFileSync(path.join(out, 'veil.js'), js);
 writeFileSync(path.join(out, 'index.html'), page({ title: 'VEIL&lt;/&gt;™ VPN: free, private, shared', desc, body: home }));
