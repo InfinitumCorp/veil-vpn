@@ -16,6 +16,7 @@ import { execFile } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { verify } from '../shared/token.js';
 import { loadBlocklist, isBlocked, createCounter, startDnsFilter } from './blocker.js';
+import { openGeo } from './geo.js';
 
 const env = (k, d) => process.env[k] ?? d;
 const NODE_ID = env('NODE_ID', 'local-dev');
@@ -38,7 +39,14 @@ const BLOCKLISTS = env('BLOCKLIST', fileURLToPath(new URL('./blocklist.txt', imp
 const DNS_LISTEN = env('DNS_LISTEN', '');                    // e.g. 10.66.0.1:53 on a real node
 const DNS_UPSTREAM = env('DNS_UPSTREAM', '127.0.0.1:5335');  // the node's private resolver (unbound)
 let blocklist = loadBlocklist(BLOCKLISTS);
-setInterval(() => { blocklist = loadBlocklist(BLOCKLISTS); }, 3_600_000).unref();   // picks up list refreshes
+let geo = null;
+try { geo = openGeo(); }
+catch (e) { console.error(`geo: ${e.message}`); process.exit(1); }
+const geoPeers = new Set();   // tunnel IPs whose user turned geo routing on; unused while geo is off
+setInterval(() => {
+  blocklist = loadBlocklist(BLOCKLISTS);
+  if (geo) { try { geo = openGeo(); } catch (e) { console.error(`geo: ${e.message}`); } }
+}, 3_600_000).unref();   // picks up list refreshes
 const blockedCount = createCounter();
 const unblocked = new Set();                                  // tunnel IPs of users who turned blocking off
 const ACCOUNTS_FILE = env('ACCOUNTS_FILE', '');              // e.g. /var/lib/veil/accounts.json; empty = memory only
@@ -76,12 +84,22 @@ function authorize(req) {
   const [user, ...rest] = Buffer.from(m[1], 'base64').toString().split(':');
   const token = rest.join(':');
   const p = user === 'veil' && verify(token, TOKEN_SECRET);
-  return p && p.node === NODE_ID ? { token, tor: p.tor === true, block: p.block !== false, sid: String(p.sid || '') } : null;
+  if (!(p && p.node === NODE_ID)) return null;
+  const a = { token, tor: p.tor === true, block: p.block !== false, sid: String(p.sid || '') };
+  if (geo && p.geo === true) a.geo = true;
+  return a;
 }
 
 // A blocked tracker gets a 403 and adds one to this user's count; the name itself is not kept.
+const geoHit = (a, host) => {
+  if (!a.geo || !geo) return false;
+  const h = String(host).replace(/^\[|\]$/g, '');
+  if (geo.blocksDomain(h)) return true;
+  return net.isIP(h) && geo.blocksIp(h);
+};
 const blockedHost = (a, host) => {
-  if (!a.block || !isBlocked(blocklist, host.replace(/^\[|\]$/g, ''))) return false;
+  const h = host.replace(/^\[|\]$/g, '');
+  if (!a.block || !(isBlocked(blocklist, h) || geoHit(a, h))) return false;
   blockedCount.add(`t:${a.sid}`); return true;
 };
 const BLOCKED_RESPONSE = 'HTTP/1.1 403 Forbidden\r\nX-Veil-Blocked: tracker\r\nContent-Length: 0\r\nConnection: close\r\n\r\n';
@@ -154,6 +172,7 @@ const onConnect = async (req, client, head) => {
   }
   let ip;
   try { ip = await resolveSafe(host, port); } catch { return client.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n'); }
+  if (a.geo && geo && geo.blocksIp(ip)) { blockedCount.add(`t:${a.sid}`); return client.end(BLOCKED_RESPONSE); }
   const upstream = net.connect(port, ip, () => {
     client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
     if (head?.length) upstream.write(head);
@@ -178,6 +197,7 @@ const onRequest = async (req, res) => {
   if (blockedHost(a, target.hostname)) { res.writeHead(403, { 'x-veil-blocked': 'tracker', 'content-length': 0 }); return res.end(); }
   let ip, torHost;
   try { if (a.tor) torHost = torTarget(target.hostname, port); else ip = await resolveSafe(target.hostname, port); } catch { res.writeHead(403); return res.end(); }
+  if (ip && a.geo && geo && geo.blocksIp(ip)) { blockedCount.add(`t:${a.sid}`); res.writeHead(403, { 'x-veil-blocked': 'tracker', 'content-length': 0 }); return res.end(); }
   const headers = { ...req.headers };
   delete headers['proxy-authorization']; delete headers['proxy-connection'];
   const via = a.tor ? { createConnection: (o, cb) => { torConnect(torHost, port).then((sk) => cb(null, sk), cb); } } : {};
@@ -235,6 +255,7 @@ setInterval(() => {
 const applyTunnel = (ip, a) => {
   nft(a?.tor ? 'add' : 'delete', ip);
   if (a && a.block === false) unblocked.add(ip); else unblocked.delete(ip);
+  if (geo) { if (a?.geo === true) geoPeers.add(ip); else geoPeers.delete(ip); }
 };
 const sameText = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && timingSafeEqual(x, y); };
 
@@ -281,19 +302,24 @@ const agentHandler = async (req, res) => {
   if (req.headers.authorization !== `Bearer ${AGENT_SECRET}`) return agentJson(res, 401, { error: 'unauthorized' });
   const body = await new Promise((r) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 4096) req.destroy(); }); req.on('end', () => { try { r(s ? JSON.parse(s) : {}); } catch { r({}); } }); });
   try {
-    if (req.method === 'GET' && req.url === '/health') return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100 });
+    if (req.method === 'GET' && req.url === '/health') {
+      const health = { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100 };
+      if (geo) health.geo = { categories: geo.categories, domains: geo.domainRules, cidrs: geo.cidrRules };
+      return agentJson(res, 200, health);
+    }
     if (req.method === 'POST' && req.url === '/peers') {
       if (!KEY_RE.test(body.publicKey || '') || !IP_RE.test(body.ip || '')) return agentJson(res, 400, { error: 'bad_input' });
       if (body.tor === true && !TOR_SOCKS) return agentJson(res, 400, { error: 'tor_unavailable' });
       await run(['set', WG_IFACE, 'peer', body.publicKey, 'allowed-ips', `${body.ip}/32`]);
       await nft(body.tor === true ? 'add' : 'delete', body.ip);
       if (body.block === false) unblocked.add(body.ip); else unblocked.delete(body.ip);
+      if (geo) { if (body.geo === true) geoPeers.add(body.ip); else geoPeers.delete(body.ip); }
       peers++; return agentJson(res, 200, { ok: true, tor: body.tor === true });
     }
     if (req.method === 'POST' && req.url === '/peers/remove') {
       if (!KEY_RE.test(body.publicKey || '')) return agentJson(res, 400, { error: 'bad_input' });
       await run(['set', WG_IFACE, 'peer', body.publicKey, 'remove']);
-      if (IP_RE.test(body.ip || '')) { await nft('delete', body.ip); unblocked.delete(body.ip); }
+      if (IP_RE.test(body.ip || '')) { await nft('delete', body.ip); unblocked.delete(body.ip); if (geo) geoPeers.delete(body.ip); }
       peers = Math.max(0, peers - 1); return agentJson(res, 200, { ok: true });
     }
     // IKEv2 / OpenVPN login for one session. Settings changes apply at once to tunnels already up.
@@ -303,6 +329,7 @@ const agentHandler = async (req, res) => {
       const old = accounts.get(body.user) || { live: 0, manual: 0 };
       const a = { pass: body.pass, tor: body.tor === true, block: body.block !== false,
         live: body.manual === true ? old.live : body.exp, manual: body.manual === true ? Math.max(old.manual, body.exp) : old.manual };
+      if (geo && body.geo === true) a.geo = true;
       accounts.set(body.user, a);
       for (const [ip, u] of bound) if (u === body.user) applyTunnel(ip, a);
       await persist();
@@ -332,7 +359,10 @@ export function start() {
   proxy.on('clientError', (e, s) => s.destroy());
   proxy.headersTimeout = 20_000; proxy.requestTimeout = 0;
   const agentServer = tls ? https.createServer(tls, agentHandler) : http.createServer(agentHandler);
-  if (DNS_LISTEN) startDnsFilter({ listen: DNS_LISTEN, upstream: DNS_UPSTREAM, list: () => blocklist, counter: blockedCount, allows: (ip) => unblocked.has(ip) })
+  if (DNS_LISTEN) startDnsFilter({
+    listen: DNS_LISTEN, upstream: DNS_UPSTREAM, list: () => blocklist, counter: blockedCount, allows: (ip) => unblocked.has(ip),
+    ...(geo ? { geoMatch: (name, ip) => !!(geo && geoPeers.has(ip) && geo.blocksDomain(name)) } : {}),
+  })
     .catch((e) => console.error(`dns filter: ${e.message}`));
   const hook = http.createServer(hookHandler);
   return Promise.all([

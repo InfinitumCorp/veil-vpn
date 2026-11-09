@@ -200,6 +200,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       if (tor && !n.tor) fail(400, 'tor_unavailable');
       // Tracker blocking is on unless the user switched it off.
       const block = body.block !== false;
+      // Geo routing is opt-in. Omitted unless the client turned the Settings switch on.
+      const geo = body.geo === true;
       // "manual": a set-up for another device (a .conf / .ovpn file or IKEv2 details) that lasts 7 days
       // and earns nothing; it does not replace this device's own connection lease.
       const manual = body.manual === true;
@@ -212,8 +214,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
 
       if (mode === 'ikev2' || mode === 'openvpn') {
         const acct = account(s, n);
-        await agent(n, 'POST', '/accounts', { ...acct, exp, tor, block, manual, protocol: mode });
-        const common = { mode, server: publicNode(n), exp, tor, block, manual };
+        await agent(n, 'POST', '/accounts', { ...acct, exp, tor, block, manual, protocol: mode, ...(geo && { geo: true }) });
+        const common = { mode, server: publicNode(n), exp, tor, block, manual, ...(geo && { geo: true }) };
         if (mode === 'ikev2') return { ...common, ikev2: { server: n.ikev2.host, remoteId: n.ikev2.remoteId || n.ikev2.host, username: acct.user, password: acct.pass, auth: 'eap-mschapv2', dns: n.ikev2.dns || '10.66.0.1' } };
         return { ...common, openvpn: { username: acct.user, password: acct.pass, profile: ovpnProfile(n) } };
       }
@@ -222,14 +224,14 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
         if (!/^[A-Za-z0-9+/]{43}=$/.test(pub)) fail(400, 'bad_public_key');
         const old = await db.get('SELECT node, ip FROM wg_peers WHERE pubkey = ?', pub);
         const ip = old && old.node === n.id ? String(old.ip) : await nextWgIp(db, n.id);
-        await agent(n, 'POST', '/peers', { publicKey: pub, ip, tor, block });
+        await agent(n, 'POST', '/peers', { publicKey: pub, ip, tor, block, ...(geo && { geo: true }) });
         await db.run(`INSERT INTO wg_peers (pubkey, sid, node, ip) VALUES (?, ?, ?, ?)
           ON CONFLICT (pubkey) DO UPDATE SET node = excluded.node, ip = excluded.ip, sid = excluded.sid`, pub, s.id, n.id, ip);
-        return { mode: 'wireguard', server: publicNode(n), exp, tor, block, wireguard: {
+        return { mode: 'wireguard', server: publicNode(n), exp, tor, block, ...(geo && { geo: true }), wireguard: {
           address: `${ip}/32`, dns: n.wg.dns || '10.66.0.1', peerPublicKey: n.wg.publicKey, endpoint: n.wg.endpoint, allowedIps: '0.0.0.0/0, ::/0', keepalive: 25 } };
       }
-      const token = sign({ sid: hash(s.id).slice(0, 16), node: n.id, exp, ...(tor && { tor: true }), ...(!block && { block: false }) }, TOKEN_SECRET);
-      return { mode: 'proxy', server: publicNode(n), exp, tor, block, proxy: { scheme: n.proxy.scheme, host: n.proxy.host, port: n.proxy.port, username: 'veil', password: token } };
+      const token = sign({ sid: hash(s.id).slice(0, 16), node: n.id, exp, ...(tor && { tor: true }), ...(!block && { block: false }), ...(geo && { geo: true }) }, TOKEN_SECRET);
+      return { mode: 'proxy', server: publicNode(n), exp, tor, block, ...(geo && { geo: true }), proxy: { scheme: n.proxy.scheme, host: n.proxy.host, port: n.proxy.port, username: 'veil', password: token } };
     },
 
     'POST /v1/disconnect': async (db, req) => {

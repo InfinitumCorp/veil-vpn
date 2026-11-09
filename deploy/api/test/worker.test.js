@@ -87,6 +87,7 @@ test('heartbeat needs a connection; proxy connect signs a token', async () => {
   assert.equal(c.body.mode, 'proxy'); assert.equal(c.body.tor, true); assert.equal(c.body.block, false);
   const payload = JSON.parse(Buffer.from(c.body.proxy.password.split('.')[0], 'base64url'));
   assert.equal(payload.node, 'ams'); assert.equal(payload.tor, true); assert.equal(payload.block, false);
+  assert.equal(payload.geo, undefined); assert.equal(c.body.geo, undefined);
   const me = await call('/v1/me', { token });
   assert.equal(me.body.connection.node, 'ams'); assert.equal(typeof me.body.connection.exp, 'number');
 });
@@ -102,9 +103,11 @@ test('WireGuard connect registers a peer, reuses its address, and reports blocke
   const pub = 'B'.repeat(43) + '=';
   const a = await call('/v1/connect', { method: 'POST', token, body: { server: 'ams', mode: 'wireguard', publicKey: pub } });
   assert.equal(a.status, 200, JSON.stringify(a.body)); assert.equal(a.body.wireguard.address, '10.66.0.2/32');
+  assert.equal(a.body.wireguard.allowedIps, '0.0.0.0/0, ::/0');
+  assert.equal(a.body.geo, undefined);
   const b = await call('/v1/connect', { method: 'POST', token, body: { server: 'ams', mode: 'wireguard', publicKey: pub } });
   assert.equal(b.body.wireguard.address, '10.66.0.2/32');
-  assert.ok(agentCalls.some((x) => x.startsWith('POST /peers') && x.includes('10.66.0.2') && x.includes('"block":true')));
+  assert.ok(agentCalls.some((x) => x.startsWith('POST /peers') && x.includes('10.66.0.2') && x.includes('"block":true') && !x.includes('"geo"')));
   const bl = await call('/v1/blocked', { token });
   assert.deepEqual(bl.body, { blocked: 7, connected: true });
   assert.ok(agentCalls.some((x) => x.startsWith('GET /blocked?') && x.includes('ip=10.66.0.2')));
@@ -196,6 +199,21 @@ test('disconnect removes peers; the database holds no IP addresses or raw device
   assert.equal((await call('/v1/heartbeat', { method: 'POST', token, body: { active: true } })).body.error, 'not_connected');
   const dump = JSON.stringify([...await db.all('SELECT * FROM sessions'), ...await db.all('SELECT * FROM net_day')]);
   for (const s of ['203.0.113', '198.51.100', DEVICE, 'worker-net-device']) assert.ok(!dump.includes(s), s);
+});
+
+test('geo opt-in is carried only when the client asks, and the tunnel stays full', async () => {
+  const device = 'worker-geo-device-0001';
+  const s = (await call('/v1/session', { method: 'POST', device, ip: '203.0.113.50' })).body.token;
+  const off = await call('/v1/connect', { method: 'POST', token: s, device, ip: '203.0.113.50', body: { server: 'ams', mode: 'proxy' } });
+  const offPayload = JSON.parse(Buffer.from(off.body.proxy.password.split('.')[0], 'base64url'));
+  assert.equal(offPayload.geo, undefined);
+  assert.equal(off.body.geo, undefined);
+  const pub = 'H'.repeat(43) + '=';
+  const on = await call('/v1/connect', { method: 'POST', token: s, device, ip: '203.0.113.50', body: { server: 'ams', mode: 'wireguard', publicKey: pub, geo: true } });
+  assert.equal(on.status, 200, JSON.stringify(on.body));
+  assert.equal(on.body.geo, true);
+  assert.equal(on.body.wireguard.allowedIps, '0.0.0.0/0, ::/0');
+  assert.ok(agentCalls.some((x) => x.includes(pub) && x.includes('"geo":true')));
 });
 
 test('scheduled purge deletes network tags older than 3 days', async () => {

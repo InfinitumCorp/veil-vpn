@@ -450,6 +450,25 @@ test('tracker blocking: the proxy refuses trackers, counts them, and respects th
   assert.notEqual(through.headers['x-veil-blocked'], 'tracker');
   const h = await fetch('http://127.0.0.1:19101/health', { headers: { authorization: `Bearer ${process.env.AGENT_SECRET}` } }).then((r) => r.json());
   assert.ok(h.blocklist > 80); assert.ok(h.blockedToday >= 2);
+  assert.equal(h.geo, undefined);
+});
+
+test('geo routing opt-in does not change the full tunnel while the node switch is off', async () => {
+  const on = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'proxy', geo: true } });
+  assert.equal(on.status, 200, JSON.stringify(on.body));
+  assert.equal(on.body.geo, true);
+  const payload = JSON.parse(Buffer.from(on.body.proxy.password.split('.')[0], 'base64url'));
+  assert.equal(payload.geo, true);
+  const pub = 'G'.repeat(43) + '=';
+  const wg = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'wireguard', publicKey: pub, geo: true } });
+  assert.equal(wg.body.wireguard.allowedIps, '0.0.0.0/0, ::/0');
+  const plain = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'proxy' } });
+  const plainPayload = JSON.parse(Buffer.from(plain.body.proxy.password.split('.')[0], 'base64url'));
+  assert.equal(plainPayload.geo, undefined);
+  assert.equal(plain.body.geo, undefined);
+  const through = await tunnel(plain.body.proxy.password, `127.0.0.1:${targetPort}`);
+  assert.match(through.status, /200/);
+  through.sock.destroy();
 });
 
 test('disconnect ends rewards', async () => {

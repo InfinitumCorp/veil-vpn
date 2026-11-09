@@ -29,3 +29,7 @@ android/.kotlin/
 *.apk
 *.aab
 *.log
+
+# Opt-in v2fly geo datasets (scripts/fetch-geo-dat.mjs). Large binaries, not committed.
+data/geo/*.dat
+data/geo/*.tmp

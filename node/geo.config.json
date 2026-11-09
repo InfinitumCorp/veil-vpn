@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "dir": "",
+  "categories": [],
+  "note": "Opt-in geo routing. enabled false keeps the full tunnel and the tracker list. Same switch as VEIL_GEO_ENABLED and the Settings control in the extension and Android app. Turn it on only after scripts/fetch-geo-dat.mjs has written data/geo."
+}
