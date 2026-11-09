@@ -104,7 +104,9 @@ dd small{font-size:13px;color:var(--muted)}
 .ad-body:hover strong{color:var(--accent)}
 
 /* locations */
-.search input{width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--ink);background:none;border-radius:0;font-size:18px}
+.search input{width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--ink);background:none;border-radius:0;font-size:18px;text-align:center;-webkit-appearance:none;appearance:none}
+.search input::placeholder{text-align:center;color:var(--muted)}
+.search input::-webkit-search-cancel-button,.search input::-webkit-search-decoration{-webkit-appearance:none;display:none}
 .search input:focus{outline:none;border-bottom-color:var(--accent)}
 .srv-list{list-style:none;margin:0;padding:0}
 .srv-list button{display:grid;grid-template-columns:40px 1fr 96px 48px;gap:16px;align-items:center;width:100%;text-align:left;padding:13px 0;border:0;border-bottom:1px solid var(--line);background:none;font-size:15px}
