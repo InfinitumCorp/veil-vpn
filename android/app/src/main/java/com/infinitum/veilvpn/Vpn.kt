@@ -80,11 +80,14 @@ object Vpn {
             val prefs = ctx.getSharedPreferences("veil", Context.MODE_PRIVATE)
             val wantTor = prefs.getBoolean("tor", false)
             val wantBlock = prefs.getBoolean("block", true)   // tracker blocking: on unless switched off
-            if (chosenProtocol(ctx) == "ikev2") return connectIkev2(ctx, serverId, reconnect, wantTor, wantBlock)
+            val wantGeo = prefs.getBoolean("geo", false)      // geo routing: off unless the user opts in
+            if (chosenProtocol(ctx) == "ikev2") return connectIkev2(ctx, serverId, reconnect, wantTor, wantBlock, wantGeo)
             if (protocol == "ikev2") { Ikev2.stop(ctx); protocol = "wireguard" }
             val kp = keyPair(ctx)
-            val r = ControlApi(ctx).call("POST", "/v1/connect", JSONObject()
-                .put("server", serverId).put("mode", "wireguard").put("publicKey", kp.publicKey.toBase64()).put("tor", wantTor).put("block", wantBlock))
+            val connectBody = JSONObject()
+                .put("server", serverId).put("mode", "wireguard").put("publicKey", kp.publicKey.toBase64()).put("tor", wantTor).put("block", wantBlock)
+            if (wantGeo) connectBody.put("geo", true)
+            val r = ControlApi(ctx).call("POST", "/v1/connect", connectBody)
             tor = r.optBoolean("tor", false)
             val wg = r.getJSONObject("wireguard")
             region = r.getJSONObject("server").optString("region", "global")
@@ -99,7 +102,7 @@ object Vpn {
             val peer = Peer.Builder()
                 .parsePublicKey(wg.getString("peerPublicKey"))
                 .parseEndpoint(wg.getString("endpoint"))
-                .parseAllowedIPs(wg.getString("allowedIps"))
+                .parseAllowedIPs(if (BuildConfig.GEO_ROUTING) GeoHook.allowedIps(wg.getString("allowedIps")) else wg.getString("allowedIps"))
                 .setPersistentKeepalive(wg.optInt("keepalive", 25))
                 .build()
             val config = Config.Builder().setInterface(iface).addPeer(peer).build()
@@ -126,9 +129,11 @@ object Vpn {
      * IKEv2: the control server's login goes into Android's IKEv2 profile. On a lease renewal while
      * the session is up nothing is restarted (the login stays the same; the server just extends it).
      */
-    private fun connectIkev2(ctx: Context, serverId: String, reconnect: Boolean, wantTor: Boolean, wantBlock: Boolean) {
-        val r = ControlApi(ctx).call("POST", "/v1/connect", JSONObject()
-            .put("server", serverId).put("mode", "ikev2").put("tor", wantTor).put("block", wantBlock))
+    private fun connectIkev2(ctx: Context, serverId: String, reconnect: Boolean, wantTor: Boolean, wantBlock: Boolean, wantGeo: Boolean) {
+        val connectBody = JSONObject()
+            .put("server", serverId).put("mode", "ikev2").put("tor", wantTor).put("block", wantBlock)
+        if (wantGeo) connectBody.put("geo", true)
+        val r = ControlApi(ctx).call("POST", "/v1/connect", connectBody)
         tor = r.optBoolean("tor", false)
         region = r.getJSONObject("server").optString("region", "global")
         val switching = protocol != "ikev2"

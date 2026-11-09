@@ -32,6 +32,12 @@ export function isBlocked(set, name) {
   return false;
 }
 
+// Hosts-list match, then an optional extra check. With no extra function this is isBlocked.
+export function nameBlocked(list, name, extra) {
+  if (isBlocked(list, name)) return true;
+  return typeof extra === 'function' && extra(name) === true;
+}
+
 // Per-user counts for the current UTC day, keyed by tunnel IP or token id. Memory only.
 export function createCounter() {
   let day = new Date().toISOString().slice(0, 10);
@@ -70,13 +76,14 @@ export function nxdomain(msg) {
 }
 
 // DNS filter for tunnel clients. `allows(ip)` says whether that client turned blocking off.
-export function startDnsFilter({ listen, upstream, list, counter, allows }) {
+export function startDnsFilter({ listen, upstream, list, counter, allows, geoMatch }) {
+  const blockedName = (name, ip) => nameBlocked(list(), name, geoMatch ? (n) => geoMatch(n, ip) : undefined);
   const [lh, lp] = [listen.slice(0, listen.lastIndexOf(':')), Number(listen.slice(listen.lastIndexOf(':') + 1))];
   const [uh, up] = [upstream.slice(0, upstream.lastIndexOf(':')), Number(upstream.slice(upstream.lastIndexOf(':') + 1))];
   const sock = dgram.createSocket('udp4');
   sock.on('message', (msg, rinfo) => {
     const name = queryName(msg);
-    if (name && !allows(rinfo.address) && isBlocked(list(), name)) {
+    if (name && !allows(rinfo.address) && blockedName(name, rinfo.address)) {
       counter.add(rinfo.address);
       return sock.send(nxdomain(msg), rinfo.port, rinfo.address);
     }
@@ -97,7 +104,7 @@ export function startDnsFilter({ listen, upstream, list, counter, allows }) {
         const msg = buf.subarray(2, 2 + buf.readUInt16BE(0)); buf = buf.subarray(2 + msg.length);
         const name = queryName(msg);
         const ip = c.remoteAddress.replace(/^::ffff:/, '');
-        if (name && !allows(ip) && isBlocked(list(), name)) { counter.add(ip); c.write(framed(nxdomain(msg))); continue; }
+        if (name && !allows(ip) && blockedName(name, ip)) { counter.add(ip); c.write(framed(nxdomain(msg))); continue; }
         const up = net.connect(uport, uh, () => up.write(framed(msg)));
         let ub = Buffer.alloc(0);
         up.setTimeout(4000, () => up.destroy());

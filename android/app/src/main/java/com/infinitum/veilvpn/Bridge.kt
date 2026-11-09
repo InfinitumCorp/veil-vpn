@@ -68,10 +68,14 @@ class Bridge(
         "claim" -> api.call("POST", "/v1/claim").toString()
         // A set-up for another device (laptop, iPhone, router): WireGuard needs the public key the
         // interface generated; the private key never leaves the interface.
-        "manual" -> api.call("POST", "/v1/connect", JSONObject()
-            .put("server", p.getString("server")).put("mode", p.getString("mode")).put("manual", true)
-            .put("publicKey", p.optString("publicKey", "")).put("tor", prefs.getBoolean("tor", false))
-            .put("block", prefs.getBoolean("block", true))).toString()
+        "manual" -> {
+            val body = JSONObject()
+                .put("server", p.getString("server")).put("mode", p.getString("mode")).put("manual", true)
+                .put("publicKey", p.optString("publicKey", "")).put("tor", prefs.getBoolean("tor", false))
+                .put("block", prefs.getBoolean("block", true))
+            if (prefs.getBoolean("geo", false)) body.put("geo", true)
+            api.call("POST", "/v1/connect", body).toString()
+        }
         "settings" -> JSONObject()
             .put("proto", Vpn.chosenProtocol(ctx))
             .put("ikev2", Ikev2.supported())
@@ -79,15 +83,16 @@ class Bridge(
             .put("auto", prefs.getBoolean("auto", false))
             .put("tor", prefs.getBoolean("tor", false))
             .put("block", prefs.getBoolean("block", true))
+            .put("geo", prefs.getBoolean("geo", false))
             .put("alerts", prefs.getBoolean("alerts", true))
             .toString()
         "setting" -> {
             when (val k = p.getString("key")) {
                 "earn", "auto" -> prefs.edit().putBoolean(k, p.getBoolean("value")).apply()
                 "alerts" -> { prefs.edit().putBoolean(k, p.getBoolean("value")).apply(); NetworkGuard.register(ctx) }
-                "tor", "block" -> {
+                "tor", "block", "geo" -> {
                     prefs.edit().putBoolean(k, p.getBoolean("value")).apply()
-                    // Re-register with the node so it updates this device's Tor and blocking settings.
+                    // Re-register with the node so it updates this device's Tor, blocking, and geo settings.
                     val server = Vpn.server
                     if (Vpn.state != "off" && server != null) runCatching { Vpn.connect(ctx, server, reconnect = true) }
                 }
@@ -110,8 +115,10 @@ class Bridge(
     private suspend fun connect(server: String): String {
         if (Vpn.chosenProtocol(ctx) == "ikev2") {
             // Android asks once whether VEIL may add its IKEv2 profile (the system's own dialog).
-            val r = api.call("POST", "/v1/connect", JSONObject().put("server", server).put("mode", "ikev2")
-                .put("tor", prefs.getBoolean("tor", false)).put("block", prefs.getBoolean("block", true)))
+            val ikeBody = JSONObject().put("server", server).put("mode", "ikev2")
+                .put("tor", prefs.getBoolean("tor", false)).put("block", prefs.getBoolean("block", true))
+            if (prefs.getBoolean("geo", false)) ikeBody.put("geo", true)
+            val r = api.call("POST", "/v1/connect", ikeBody)
             val consent = Ikev2.provision(ctx, r.getJSONObject("ikev2"))
             if (consent != null && !askVpnPermission(consent)) throw ApiError("vpn_permission_denied")
         } else if (!askVpnPermission(null)) throw ApiError("vpn_permission_denied")

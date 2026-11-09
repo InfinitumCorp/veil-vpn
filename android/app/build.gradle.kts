@@ -32,6 +32,8 @@ android {
         versionCode = (findProperty("veilVersionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("veilVersionName") as String?) ?: "0.1.0"
         buildConfigField("String", "CONTROL_URL", "\"$controlUrl\"")
+        // Off in every default build. Vpn uses the server full tunnel unless a local build opts in.
+        buildConfigField("boolean", "GEO_ROUTING", if ((findProperty("veilGeoRouting") as String?) == "true") "true" else "false")
     }
 
     buildFeatures { buildConfig = true }

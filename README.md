@@ -136,6 +136,17 @@ On by default for everyone; Settings → "Block trackers" turns it off (the app 
   names. The app shows it ("12 blocked today") via `GET /v1/blocked`.
 - With Tor over VPN on, DNS goes to Tor instead, so WireGuard users are not filtered (browser users still are).
 
+## Geo routing (opt-in)
+
+Off by default in the extension, the Android app, and the node. While it is off, the full tunnel
+(`0.0.0.0/0, ::/0`) and the tracker list are unchanged.
+
+- **Extension and Android:** Settings → Geo routing. The choice is saved on the device. Off does not add a field to the connection request.
+- **Node:** `node/geo.config.json` ships with `"enabled": false`. `VEIL_GEO_ENABLED=1` is the same switch and wins when the variable is set. `VEIL_GEO_DIR` (default `data/geo`) and `VEIL_GEO_BLOCK_CATEGORIES` (for example `category-ads-all`) are read only after that switch is on.
+- **Datasets:** `node scripts/fetch-geo-dat.mjs` downloads the pinned v2fly `geoip.dat` and `dlc.dat` (saved as `geosite.dat`) and checks the official `.sha256sum` assets. The binaries are not stored in git. See `THIRD_PARTY_NOTICES.md`.
+
+A user who turns the switch on is matched against those lists only when the node switch is on as well.
+
 ## Network status and unsafe-network alerts (Android)
 
 - The Connect screen shows the current network's status: "This Wi-Fi: protected", "Mobile data: not

@@ -144,7 +144,7 @@ if (EXT) document.documentElement.classList.add('ext');
 
 // ---------------------------------------------------------------- settings
 const SET_KEY = 'veil-vpn-settings';
-const DEFAULT_SET = { block: true, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'wireguard' };
+const DEFAULT_SET = { block: true, geo: false, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'wireguard' };
 // Protocols: the label in the status line and a one-line hint under the Settings row.
 const PROTOS = {
   wireguard: ['WireGuard', 'WireGuard: fastest, modern cryptography'],
@@ -398,8 +398,8 @@ $$('[data-set]').forEach((el) => {
     if (k === 'proto') paintProto();
     // Tor and tracker blocking are set per connection: the app reconnects to apply them.
     if (k === 'block') paintShield();
-    if ((k === 'tor' || k === 'block') && conn.state === 'on') {
-      toast(k === 'block' ? (SET.block ? 'Tracker blocking on' : 'Tracker blocking off') : SET.tor ? 'Reconnecting through Tor' : 'Leaving Tor');
+    if ((k === 'tor' || k === 'block' || k === 'geo') && conn.state === 'on') {
+      toast(k === 'block' ? (SET.block ? 'Tracker blocking on' : 'Tracker blocking off') : k === 'geo' ? (SET.geo ? 'Geo routing on' : 'Geo routing off') : SET.tor ? 'Reconnecting through Tor' : 'Leaving Tor');
       if (LIVE) setTimeout(async () => { try { conn = await api.state(); paintConn(); } catch { /* next poll */ } }, 2500);
       else paintConn();
     }

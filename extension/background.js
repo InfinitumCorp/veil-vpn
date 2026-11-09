@@ -6,7 +6,7 @@ import { CONTROL_URL } from './config.js';
 const S = { local: chrome.storage.local, session: chrome.storage.session };
 const get = async (area, k) => (await S[area].get(k))[k];
 const set = (area, k, v) => S[area].set({ [k]: v });
-const DEFAULTS = { block: true, kill: true, tor: false, auto: false, earn: true, proto: 'HTTPS' };
+const DEFAULTS = { block: true, geo: false, kill: true, tor: false, auto: false, earn: true, proto: 'HTTPS' };
 const settings = async () => ({ ...DEFAULTS, ...(await get('local', 'settings')) });
 
 // ---------- control API ----------
@@ -80,7 +80,7 @@ async function connect(server, { reconnect = false } = {}) {
   if (!reconnect) await set('session', 'conn', { state: 'connecting', server, since: 0 });
   try {
     const st = await settings();
-    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false } });
+    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false, ...(st.geo === true && { geo: true }) } });
     await set('session', 'creds', { username: r.proxy.username, password: r.proxy.password });
     await applyProxy(r.proxy);
     if (!(await probe())) throw new Error('node_unreachable');
@@ -197,13 +197,13 @@ export const handlers = {   // exported for tests; the popup reaches these by me
   // pair and sends only the public key.
   manual: async (m) => {
     const s = await settings();
-    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode: String(m.mode), manual: true, publicKey: m.publicKey, tor: s.tor, block: s.block } });
+    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode: String(m.mode), manual: true, publicKey: m.publicKey, tor: s.tor, block: s.block, ...(s.geo === true && { geo: true }) } });
   },
   setting: async (m) => {
     const s = await settings(); s[m.key] = m.value; await set('local', 'settings', s);
     // Tor and tracker blocking are part of the proxy token, so switching them while connected reconnects.
     const c = await get('session', 'conn');
-    if ((m.key === 'tor' || m.key === 'block') && c?.state === 'on') connect(c.server, { reconnect: true }).catch(() => heal(c.server));
+    if ((m.key === 'tor' || m.key === 'block' || m.key === 'geo') && c?.state === 'on') connect(c.server, { reconnect: true }).catch(() => heal(c.server));
     return s;
   },
 };
