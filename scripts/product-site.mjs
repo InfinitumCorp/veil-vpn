@@ -82,6 +82,13 @@ const PANELS = [
     ['OpenVPN', 'Works almost anywhere, over UDP or TCP, with the OpenVPN app on any computer, phone or router.'],
     ['HTTPS proxy', 'What the browser extensions use: the browser\'s traffic, encrypted to our server over port 443.'],
   ]) + '<p>To use VEIL on another device, open <em>Other devices</em> in the app and choose a protocol. You get a WireGuard file, an OpenVPN profile or IKEv2 settings, with a login that lasts 7 days.</p>'],
+  ['devices', 'iPhone, Mac, Windows', facts([
+    ['1. Make a set-up', 'In the Android app or the browser extension, open <em>Other devices</em>, pick a location and a protocol. The login lasts 7 days; make a new one when it runs out.'],
+    ['iPhone and iPad', 'Settings → VPN → Add VPN Configuration → IKEv2. Enter the server, remote ID, username and password from the set-up. Or import the WireGuard file into the WireGuard app.'],
+    ['Mac', 'System Settings → VPN → Add VPN Configuration → IKEv2, with the same details. Or use the WireGuard or OpenVPN file.'],
+    ['Windows', 'Settings → Network → VPN → Add VPN: provider Windows (built-in), type IKEv2, sign-in by user name and password. Or import the OpenVPN or WireGuard file.'],
+    ['Linux and routers', 'Import the WireGuard <code>.conf</code> or the OpenVPN <code>.ovpn</code> file.'],
+  ])],
   ['cant-see', 'What VEIL can\'t see', facts([
     ['The sites and apps you use', 'No traffic logs and no DNS logs. Blocked trackers are counted, never named.'],
     ['What you send', 'Encrypted from your device to our server. HTTPS sites stay encrypted all the way.'],
@@ -102,12 +109,14 @@ const home = `<main id="main">
 <nav class="bookmarks" id="get" aria-label="Get VEIL VPN">
 <a class="bookmark" href="/download/veil-vpn.apk" download>VEIL VPN for Android</a>
 <a class="bookmark" href="/download/veil-vpn-chrome.zip" download>VEIL VPN for Chrome and Edge</a>
+<a class="bookmark" href="/download/veil-vpn-firefox.zip" download>VEIL VPN for Firefox</a>
 </nav>
-<p class="status"><span>Firefox and iPhone soon</span><a class="text-button" href="/download/SHA256SUMS.txt">Checksums</a></p>
+<p class="status"><span>iPhone, Mac and Windows use their built-in VPN</span><button type="button" class="text-button" data-panel="devices" aria-expanded="false" aria-controls="devices">How</button><a class="text-button" href="/download/SHA256SUMS.txt">Checksums</a></p>
+<p class="status">Firefox: until it is in Firefox Add-ons, load it from <code>about:debugging</code> → This Firefox → Load Temporary Add-on.</p>
 <nav class="panel-tabs" aria-label="About VEIL VPN">${PANELS.map(([id, label]) => `<button type="button" class="text-button" data-panel="${id}" aria-expanded="false" aria-controls="${id}">${label}</button>`).join('')}</nav>
 ${PANELS.map(([id, label, html]) => `<section class="panel" id="${id}" hidden><h2>${label}</h2>${html}</section>`).join('\n')}
 </main>`;
-const desc = `VEIL</>™ VPN is Infinitum's free VPN for Android, Chrome and Edge: WireGuard, IKEv2 and OpenVPN, no logs, tracker blocking and Tor over VPN, paid for by privacy-safe ads, with ${first}–${last}% of the ad revenue shared with the people who use it.`;
+const desc = `VEIL</>™ VPN is Infinitum's free VPN for Android, Chrome, Edge and Firefox, and for iPhone, Mac and Windows through their built-in VPN: WireGuard, IKEv2 and OpenVPN, no logs, tracker blocking and Tor over VPN, paid for by privacy-safe ads, with ${first}–${last}% of the ad revenue shared with the people who use it.`;
 
 // ---- privacy and 404 ----
 const policy = readFileSync(path.join(out, 'privacy-body.html'), 'utf8');

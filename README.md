@@ -262,11 +262,14 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 3. **Extension stores:** zip `dist/extension` and submit to the Chrome Web Store and Edge
    Add-ons; zip the contents of `dist/firefox` and submit to Firefox Add-ons (AMO), which signs it.
    The add-on id is `veil@infinitum.vpn` in `scripts/build.mjs`; change it before the first upload.
+   Until AMO signs it, `node scripts/package-firefox.mjs` puts an unsigned `veil-vpn-firefox.zip` in
+   `dist/site/download/` (load it from `about:debugging`) and rewrites `SHA256SUMS.txt`.
 4. **Ad network:** swap `control/ads.json` for a contextual, non-tracking ad partner.
 
 ## Not built yet
 
-- **iOS app.** Needs a Mac with Xcode and an Apple developer account (Network Extension + WireGuardKit).
+- **iOS app.** iPhone, Mac and Windows already work today through their built-in IKEv2 VPN, with a
+  set-up from *Other devices* (see the site's "iPhone, Mac, Windows" panel). A native app needs a Mac with Xcode and an Apple developer account (Network Extension + WireGuardKit).
 - **A real "Protected" test on Android, and Tor through a real node.** Both need a rented Linux
   server from `node/provision.sh` (with `TOR=1` for Tor).
 - **Store links.** Fill in `DOWNLOADS` in `site/index.html` once the Chrome, Firefox and Play
