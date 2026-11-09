@@ -274,6 +274,15 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   server from `node/provision.sh` (with `TOR=1` for Tor).
 - **Store links.** Fill in `DOWNLOADS` in `site/index.html` once the Chrome, Firefox and Play
   listings are live, and host `dist/site` (the privacy policy URL is needed for Play).
+- **Server roadmap** (licence-checked in InfinitumCorp/RULES `reports/oss-reuse-2.md`; each needs a test on a real
+  node first). Nodes already run unbound with no query logs, behind VEIL's tracker filter.
+  1. rosenpass (Apache-2.0/MIT): post-quantum preshared key for `wg0`, rotated every ~2 minutes.
+  2. wstunnel (BSD-3): WireGuard over WebSocket on 443. Then hysteria (MIT): a QUIC mode for networks that block VPNs.
+  3. cloudflared (Apache-2.0): agent and admin ports behind Cloudflare Access, with no open ports.
+     node_exporter (Apache-2.0): server load only, no per-user data, to suggest the least busy server.
+  4. Later: nebula (MIT) node backbone; wgctrl-go (MIT) instead of shelling out to `wg`; boringtun (BSD-3)
+     or wireguard-go (MIT) on hosts without the kernel module; amneziawg-go (MIT) for disguised WireGuard.
+  Never copy code from AGPL/GPL or non-commercial projects (wg-easy, algo, Defguard, sing-box, Mullvad, Pritunl and others).
 - **Google Play Integrity** for stronger device checks (needs a Google Cloud project).
 - **On-chain $VEIL.** Payouts stop at the settlement queue. The Solana token, its audit, and the
   job that sends queued balances to FIRM Wallet come after the legal review.
