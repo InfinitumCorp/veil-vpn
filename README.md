@@ -10,14 +10,14 @@ Ad revenue is pooled with the community and paid out in $VEIL.
 | `control/` | Control API (`core.js`): anonymous sessions, server list, VPN credentials, reward minutes, ads, revenue, daily pool payouts. `server.js` runs it on Node + SQLite | Working, tested |
 | `deploy/api/` | The same control API as a Cloudflare Worker on Supabase Postgres (schema `veil_vpn`) | Live at https://api.infinitumveilvpn.app (no VPN servers listed yet) |
 | `supabase/migrations/` | Postgres schema and the `veil_api` database login for the control API | Applied to the Infinitum Corp project |
-| `node/` | VPN node: authenticated HTTPS proxy for browsers + agent for WireGuard peers and IKEv2 / OpenVPN logins; `provision.sh` sets up a fresh Ubuntu server with all four protocols | Working, tested (wg, nft and swanctl calls run in dry-run off Linux) |
+| `node/` | VPN node: authenticated HTTPS proxy for browsers + agent for WireGuard peers and IKEv2 / OpenVPN logins; `provision.sh` sets up a fresh Ubuntu server with all four protocols, and can optionally add VLESS and Shadowsocks | Working, tested (wg, nft and swanctl calls run in dry-run off Linux) |
 | `extension/` | Chrome / Edge / Firefox extension (Manifest V3) that routes browser traffic through a node | Working, tested in Chromium and Firefox |
 | `site/` | Public landing page and privacy policy (`npm run build` writes `dist/site`) | Ready to host; store links still empty |
 | `store/play/` | Google Play listing text, form answers and images | Ready |
 | `android/` | Android app (Kotlin): WireGuard or IKEv2 (Android 11+) for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
 | `veil-vpn/` | The shared interface. In a normal web page it runs as a simulated demo; inside the extension it runs live | Working |
 | `shared/` | Reward and revenue-share rules (`economics.js`) and token signing (`token.js`) | Single source of truth |
-| `test/` | End-to-end tests (control + node, real sockets) | 27 passing; plus 15 Worker tests in `deploy/api` |
+| `test/` | End-to-end tests (control + node, real sockets) plus VLESS / Shadowsocks link tests and a local Xray smoke test | 38 passing; plus 15 Worker tests in `deploy/api` |
 
 Requires Node.js 22.13 or newer. No third-party packages.
 
@@ -25,7 +25,7 @@ Requires Node.js 22.13 or newer. No third-party packages.
 
 ```bash
 cp .env.example .env        # then replace the three secrets
-npm test                    # 27 end-to-end tests
+npm test                    # 38 tests, including a local Xray smoke test
 npm run node                # terminal 1: VPN node on :9100, agent on :9101
 npm run control             # terminal 2: control server on :8787
 npm run build               # builds dist/extension and dist/firefox, pointing at http://127.0.0.1:8787
@@ -49,6 +49,10 @@ or a LAN address. The local node blocks private addresses unless `ALLOW_PRIVATE=
 | WireGuard | Android app (default); any device with the WireGuard app via a `.conf` set-up | `wg0`, UDP 51820, `10.66.0.0/16` |
 | IKEv2/IPsec | Android app on Android 11+ (Android's own IKEv2 client); iPhone, Mac and Windows built-in VPN | strongSwan, UDP 500/4500, EAP-MSCHAPv2, Let's Encrypt certificate, `10.67.0.0/16` |
 | OpenVPN | Any device with OpenVPN Connect via an `.ovpn` set-up | UDP and TCP 1194, own CA + tls-crypt, `10.68.0.0/16` (UDP) and `10.69.0.0/16` (TCP) |
+| VLESS + XTLS Reality | Another app (v2rayNG, Streisand, sing-box, Xray), from *Other devices* | Optional. Xray-core, TCP 2053. Off unless `ENABLE_VLESS=1` |
+| VLESS over WebSocket | The same apps, including behind a CDN | Optional. Secret path on the existing TLS port 443. `ENABLE_VLESS=1` and `ENABLE_WS=1` |
+| Shadowsocks-2022 | A Shadowsocks app (SIP002) or Xray / sing-box | Optional. TCP and UDP 16080, `2022-blake3-aes-128-gcm`. `ENABLE_SHADOWSOCKS=1` |
+| Shadowsocks over WebSocket | Xray or sing-box | Optional. Secret path on port 443. `ENABLE_SHADOWSOCKS=1` and `ENABLE_WS=1` |
 
 - The node lists what it offers in `/v1/servers` (`modes`). A node offers IKEv2 or OpenVPN when
   its NODES entry has an `ikev2` or `openvpn` block; `provision.sh` prints the whole entry,
@@ -66,6 +70,65 @@ or a LAN address. The local node blocks private addresses unless `ALLOW_PRIVATE=
   the app also removes WireGuard set-ups made from the same session.
 - **No logs:** OpenVPN runs with `verb 0` and without its status file; charon logs errors only, to
   the in-memory journal.
+
+### VLESS and Shadowsocks
+
+Off unless you opt in, on the server and in the app. These are for networks that block WireGuard,
+IKEv2 and OpenVPN. They run on VEIL's own nodes. There is no public server list and no volunteer exit.
+
+The server program is **Xray-core** (MPL-2.0). sing-box is GPL, and this repo does not ship or copy it.
+Settings can still save a sing-box client config, which is JSON we generate. Xray 26.11.9 is pinned in
+`shared/proxyproto.js` and `node/provision.sh`, with the release checksums.
+
+```bash
+ENABLE_VLESS=1 ENABLE_SHADOWSOCKS=1 ENABLE_WS=1 \
+  NODE_ID=zrh-1 DOMAIN=zrh-1.vpn.example.com \
+  TOKEN_SECRET=... AGENT_SECRET=... CONTROL_IP=... \
+  bash node/provision.sh
+```
+
+| Flag | Default | What it opens |
+|---|---|---|
+| `ENABLE_VLESS` | `0` | VLESS + XTLS Reality, TCP `VLESS_PORT` (2053) |
+| `ENABLE_SHADOWSOCKS` | `0` | Shadowsocks-2022, TCP and UDP `SS_PORT` (16080), cipher `SS_METHOD` (`2022-blake3-aes-128-gcm`; `2022-blake3-aes-256-gcm` and `2022-blake3-chacha20-poly1305` also validate) |
+| `ENABLE_WS` | `0` | WebSocket for whichever of the two is also on. Clients use `WS_PORT` (443). Needs VLESS or Shadowsocks |
+
+`ENABLE_WS=1` alone is refused. Reality is not put on 443: that port stays the HTTPS proxy. WebSocket
+is the 443 option. It is path-based (`/vless/…` and `/ss/…`, random per node). The node terminates TLS
+with the existing certificate and pipes that path to Xray on `127.0.0.1` only. A CDN such as Cloudflare
+can proxy the same hostname and port; set `WS_HOST`, `WS_SNI` and `WS_PORT` to the name clients dial.
+WebSockets have to be allowed on that hostname. VEIL does not change DNS for you.
+
+Reality's fallback (`VLESS_DEST`, default `127.0.0.1:443`) is this node's own HTTPS proxy, and the SNI
+(`VLESS_SNI`, default the node's domain) matches that certificate. A probe without the key sees the
+node's own site. User traffic leaves from this node. You can point `VLESS_SNI` and `VLESS_DEST` at
+some other TLS site for a different camouflage; that dial is only the fallback handshake, not an exit.
+Xray warns that a few well-known camouflage names, and any port other than 443, are more likely to be
+blocked. Port 443 for this deployment is the WebSocket form.
+
+In the app, Settings → **VLESS**, **Shadowsocks** and **WebSocket on 443** are off. Turn one on and
+*Other devices* offers the set-up: a `vless://` or `ss://` link, an Xray JSON file and a sing-box JSON
+file. The Android and browser apps do not tunnel these protocols themselves. Import the link into
+v2rayNG, Streisand, NekoBox, sing-box or Xray. The direct Shadowsocks link is SIP002. Shadowsocks over
+WebSocket uses Xray's own WebSocket, not the old v2ray-plugin: that plugin cannot carry a 2022 cipher,
+so import the JSON for that form.
+
+The link does not expire with the 7-day IKEv2 / OpenVPN login. It works until you rotate the node
+keys (delete `/var/lib/veil/xray-state.json` and run `provision.sh` again). Treat the UUID and the
+Shadowsocks password like the OpenVPN tls-crypt key: they go in the control server's `NODES` and
+nowhere public. `GET /v1/servers` lists the mode only. The agent probes the listeners and
+`/health` gains `services`; a down inbound fails just that mode with `server_offline`.
+
+Same posture as the other protocols: Xray's log level is `none` (no access log), DNS is `10.66.0.1`
+with no fallback to a public resolver, private addresses and outbound mail are dropped (Xray 26
+also blackholes private destinations on these inbounds by default), and the
+journal stays in memory. Names the node resolves still pass the tracker filter. The per-user
+"block trackers" switch and Tor over VPN do not apply to these two protocols, because there is one
+credential per node rather than one login per session. Re-running provision with the flags at `0`
+closes the ports and stops `veil-xray`. The Oracle iptables cleanup is unchanged.
+
+Xray 26 marks Shadowsocks and WebSocket as deprecated in favor of newer transports. They still run
+in the pinned build, which is why the checksum is pinned instead of tracking "latest".
 
 ## Android app
 
@@ -258,7 +321,9 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 2. **Nodes:** for each location, rent an Ubuntu 24.04 server and run `node/provision.sh` with
    the variables at the top of the script. It installs WireGuard, a firewall with NAT, a DNS
    resolver with no query logging, a TLS certificate, and the VEIL node service with logs kept
-   in memory only. Paste the JSON it prints into `control/nodes.json`.
+   in memory only. Add `ENABLE_VLESS=1`, `ENABLE_SHADOWSOCKS=1` and `ENABLE_WS=1` only for the
+   censorship-resistant protocols (see above). Paste the JSON it prints into `control/nodes.json`
+   or the Worker's `NODES` variable. Do not commit the VLESS id or the Shadowsocks password.
 3. **Extension stores:** zip `dist/extension` and submit to the Chrome Web Store and Edge
    Add-ons; zip the contents of `dist/firefox` and submit to Firefox Add-ons (AMO), which signs it.
    The add-on id is `veil@infinitum.vpn` in `scripts/build.mjs`; change it before the first upload.
@@ -277,12 +342,13 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 - **Server roadmap** (licence-checked in InfinitumCorp/RULES `reports/oss-reuse-2.md`; each needs a test on a real
   node first). Nodes already run unbound with no query logs, behind VEIL's tracker filter.
   1. rosenpass (Apache-2.0/MIT): post-quantum preshared key for `wg0`, rotated every ~2 minutes.
-  2. wstunnel (BSD-3): WireGuard over WebSocket on 443. Then hysteria (MIT): a QUIC mode for networks that block VPNs.
+  2. VLESS Reality, VLESS over WebSocket and Shadowsocks-2022 are optional via Xray-core (MPL-2.0), off by default. Still open: wstunnel (BSD-3) for WireGuard over WebSocket, then hysteria (MIT) for QUIC.
   3. cloudflared (Apache-2.0): agent and admin ports behind Cloudflare Access, with no open ports.
      node_exporter (Apache-2.0): server load only, no per-user data, to suggest the least busy server.
   4. Later: nebula (MIT) node backbone; wgctrl-go (MIT) instead of shelling out to `wg`; boringtun (BSD-3)
      or wireguard-go (MIT) on hosts without the kernel module; amneziawg-go (MIT) for disguised WireGuard.
   Never copy code from AGPL/GPL or non-commercial projects (wg-easy, algo, Defguard, sing-box, Mullvad, Pritunl and others).
+  Client configs for sing-box are generated here; the sing-box program is not vendored.
 - **Google Play Integrity** for stronger device checks (needs a Google Cloud project).
 - **On-chain $VEIL.** Payouts stop at the settlement queue. The Solana token, its audit, and the
   job that sends queued balances to FIRM Wallet come after the legal review.

@@ -1,5 +1,8 @@
 // VEIL</>™ node: an authenticated forward proxy for browser extensions, plus a small
 // agent API the control server uses to add and remove WireGuard peers, IKEv2 / OpenVPN logins, and read load.
+// When provisioned with VLESS or Shadowsocks, the same HTTPS server forwards two secret WebSocket
+// paths to a local Xray process (TLS stays here, including behind a CDN). The agent probes those
+// listeners for /health. Nothing about a destination is logged.
 // IKEv2 (strongSwan) and OpenVPN call a hook server on 127.0.0.1 to check logins and to report which
 // tunnel address a login got, so Tor and tracker blocking follow the user on every protocol.
 // Tor over VPN: when the user's token asks for Tor, proxied connections go out through the
@@ -128,6 +131,65 @@ const track = (token, sock) => {
   sock.once('close', () => { tunnels--; const n = active.get(token) - 1; n > 0 ? active.set(token, n) : active.delete(token); });
 };
 const deny407 = (sock) => sock.end('HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm="VEIL"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
+
+// ---------- Xray (VLESS / Shadowsocks), optional ----------
+function splitHostPort(addr) {
+  const i = String(addr).lastIndexOf(':');
+  if (i < 1) return null;
+  const port = Number(addr.slice(i + 1));
+  const host = addr.slice(0, i).replace(/^\[|\]$/g, '');
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535) return null;
+  return { host, port };
+}
+const probeAddr = (addr) => new Promise((resolve) => {
+  const hp = splitHostPort(addr);
+  if (!hp) return resolve(false);
+  const s = net.connect({ host: hp.host, port: hp.port });
+  let done = false;
+  const fin = (ok) => { if (done) return; done = true; s.destroy(); resolve(ok); };
+  s.setTimeout(400);
+  s.once('connect', () => fin(true));
+  s.once('timeout', () => fin(false));
+  s.once('error', () => fin(false));
+});
+// Addresses come from provision.sh. Unset means this node does not offer that inbound.
+export async function xrayServices() {
+  const map = [
+    ['vless', process.env.XRAY_REALITY_ADDR || ''],
+    ['shadowsocks', process.env.XRAY_SS_ADDR || ''],
+    ['vlessWs', process.env.XRAY_VLESS_WS_ADDR || ''],
+    ['shadowsocksWs', process.env.XRAY_SS_WS_ADDR || ''],
+  ].filter(([, a]) => a);
+  if (!map.length) return null;
+  const entries = await Promise.all(map.map(async ([k, a]) => [k, await probeAddr(a)]));
+  return { ...Object.fromEntries(entries), xray: entries.every(([, ok]) => ok) };
+}
+function wsUpstream(urlPath) {
+  const path = String(urlPath || '').split('?')[0];
+  for (const [p, up] of [[process.env.VLESS_WS_PATH, process.env.VLESS_WS_UPSTREAM], [process.env.SS_WS_PATH, process.env.SS_WS_UPSTREAM]]) {
+    if (p && up && p.startsWith('/') && p.length > 16 && p === path) return up;
+  }
+  return '';
+}
+// The browser proxy stays the TLS terminator. A matching WebSocket path is piped to local Xray,
+// which speaks cleartext WS only on 127.0.0.1. Any other upgrade is dropped and not logged.
+function bridgeUpgrade(req, socket, head) {
+  socket.on('error', () => {});
+  const up = wsUpstream(req.url);
+  const hp = up && splitHostPort(up);
+  if (!hp) return socket.destroy();
+  const upstream = net.connect(hp.port, hp.host, () => {
+    const lines = [`${req.method || 'GET'} ${req.url} HTTP/1.1`];
+    for (const [k, v] of Object.entries(req.headers)) {
+      for (const one of (Array.isArray(v) ? v : [v])) if (one != null) lines.push(`${k}: ${one}`);
+    }
+    upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
+    if (head?.length) upstream.write(head);
+    upstream.pipe(socket); socket.pipe(upstream);
+  });
+  upstream.on('error', () => socket.destroy());
+  socket.on('close', () => upstream.destroy());
+}
 
 // ---------- proxy ----------
 const onConnect = async (req, client, head) => {
@@ -281,7 +343,10 @@ const agentHandler = async (req, res) => {
   if (req.headers.authorization !== `Bearer ${AGENT_SECRET}`) return agentJson(res, 401, { error: 'unauthorized' });
   const body = await new Promise((r) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 4096) req.destroy(); }); req.on('end', () => { try { r(s ? JSON.parse(s) : {}); } catch { r({}); } }); });
   try {
-    if (req.method === 'GET' && req.url === '/health') return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100 });
+    if (req.method === 'GET' && req.url === '/health') {
+      const services = await xrayServices();
+      return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100, ...(services ? { services } : {}) });
+    }
     if (req.method === 'POST' && req.url === '/peers') {
       if (!KEY_RE.test(body.publicKey || '') || !IP_RE.test(body.ip || '')) return agentJson(res, 400, { error: 'bad_input' });
       if (body.tor === true && !TOR_SOCKS) return agentJson(res, 400, { error: 'tor_unavailable' });
@@ -329,6 +394,7 @@ export function start() {
   const tls = env('TLS_CERT', '') && { cert: readFileSync(env('TLS_CERT')), key: readFileSync(env('TLS_KEY')) };
   const proxy = tls ? https.createServer(tls, onRequest) : http.createServer(onRequest);
   proxy.on('connect', onConnect);
+  proxy.on('upgrade', bridgeUpgrade);
   proxy.on('clientError', (e, s) => s.destroy());
   proxy.headersTimeout = 20_000; proxy.requestTimeout = 0;
   const agentServer = tls ? https.createServer(tls, agentHandler) : http.createServer(agentHandler);
