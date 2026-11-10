@@ -144,7 +144,7 @@ if (EXT) document.documentElement.classList.add('ext');
 
 // ---------------------------------------------------------------- settings
 const SET_KEY = 'veil-vpn-settings';
-const DEFAULT_SET = { block: true, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'wireguard' };
+const DEFAULT_SET = { block: true, alerts: true, kill: true, tor: false, auto: false, earn: true, proto: 'wireguard', vless: false, shadowsocks: false, ws: false };
 // Protocols: the label in the status line and a one-line hint under the Settings row.
 const PROTOS = {
   wireguard: ['WireGuard', 'WireGuard: fastest, modern cryptography'],
@@ -175,7 +175,7 @@ const cc = (flag = '') => [...flag].map((c) => c.codePointAt(0) - 0x1f1e6).filte
 const plural = (n, w) => `${fmtInt(n)} ${w}${Math.round(n) === 1 ? '' : 's'}`;
 const pct = (w) => (!w ? '0%' : w < 1e-4 ? '<0.01%' : `${(w * 100).toPrecision(2)}%`);
 const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
-const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
+const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
 
 // ---------------------------------------------------------------- state
 let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = null;
@@ -396,6 +396,7 @@ $$('[data-set]').forEach((el) => {
     if (LIVE && k !== 'earn') api.call('setting', { key: k, value: SET[k] }).catch(() => {});
     if (k === 'earn') api.setEarn(SET[k]);
     if (k === 'proto') paintProto();
+    if (k === 'vless' || k === 'shadowsocks' || k === 'ws') paintDevices();
     // Tor and tracker blocking are set per connection: the app reconnects to apply them.
     if (k === 'block') paintShield();
     if ((k === 'tor' || k === 'block') && conn.state === 'on') {
@@ -427,6 +428,24 @@ function paintProto() {
 paintProto();
 
 // ---------------------------------------------------------------- other devices
+// VLESS and Shadowsocks are off until the matching Settings switch is on. WebSocket is its own switch.
+const DEVICE_BASE = [
+  ['wireguard', 'WireGuard · .conf file (WireGuard app)'],
+  ['openvpn', 'OpenVPN · .ovpn file (OpenVPN Connect)'],
+  ['ikev2', 'IKEv2 · built into iPhone, Mac and Windows'],
+];
+function paintDevices() {
+  const ids = [...DEVICE_BASE];
+  if (SET.vless) ids.push(['vless', 'VLESS Reality · link, Xray and sing-box']);
+  if (SET.shadowsocks) ids.push(['shadowsocks', 'Shadowsocks-2022 · ss:// link, Xray and sing-box']);
+  if (SET.ws && SET.vless) ids.push(['vless-ws', 'VLESS over WebSocket + TLS · port 443']);
+  if (SET.ws && SET.shadowsocks) ids.push(['shadowsocks-ws', 'Shadowsocks over WebSocket + TLS · port 443']);
+  const sel = $('#dev-proto');
+  const cur = sel.value;
+  sel.innerHTML = ids.map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
+  sel.value = ids.some(([v]) => v === cur) ? cur : 'wireguard';
+}
+paintDevices();
 // WireGuard keys are made here (WebCrypto X25519); only the public key goes to the server.
 const b64 = (u8) => btoa(String.fromCharCode(...u8));
 async function wgKeys() {
@@ -464,6 +483,15 @@ $('#dev-get').addEventListener('click', async () => {
       download(fileName(sv, 'ovpn'), r.openvpn.profile);
       html = `<p>Saved <b>${esc(fileName(sv, 'ovpn'))}</b>. Import it in OpenVPN Connect and sign in with:</p>
         <dl><dt>Username</dt><dd class="mono">${esc(r.openvpn.username)}</dd><dt>Password</dt><dd class="mono">${esc(r.openvpn.password)}</dd></dl><p>Valid until ${until(r.exp)}.</p>`;
+    } else if (mode === 'vless' || mode === 'vless-ws' || mode === 'shadowsocks' || mode === 'shadowsocks-ws') {
+      const key = mode === 'vless-ws' ? 'vlessWs' : mode === 'shadowsocks-ws' ? 'shadowsocksWs' : mode;
+      const b = r[key];
+      if (!b?.link) throw new Error('bad_setup');
+      download(fileName(sv, 'xray.json'), `${JSON.stringify(b.xray, null, 2)}\n`);
+      setTimeout(() => download(fileName(sv, 'singbox.json'), `${JSON.stringify(b.singbox, null, 2)}\n`), 400);
+      html = `<p>Saved an Xray config and a sing-box config. Import either one, or paste this link. It keeps working until this server's keys are rotated, and it does not use Tor.</p>
+        <dl><dt>Link</dt><dd class="mono">${esc(b.link)}</dd></dl>
+        <p>The link is a password for this server. Keep it to yourself. Tracker blocking follows the node's DNS filter.</p>`;
     } else {
       const k = r.ikev2;
       html = `<p>Add a VPN of type <b>IKEv2</b> (Settings → VPN on iPhone and Mac; Settings → Network → VPN on Windows):</p>

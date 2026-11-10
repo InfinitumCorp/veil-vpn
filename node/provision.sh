@@ -11,13 +11,79 @@
 # Protocols: HTTPS proxy (browsers, TCP 443), WireGuard (UDP 51820), IKEv2/IPsec with EAP-MSCHAPv2
 # (strongSwan, UDP 500/4500, Let's Encrypt server certificate) and OpenVPN (UDP and TCP 1194, own CA).
 # Set IKEV2=0 or OPENVPN=0 to leave one out.
+# Optional, off unless set to 1 (Xray-core, MPL-2.0; nothing here is a third-party VPN server):
+#   ENABLE_VLESS=1         VLESS + XTLS Reality on TCP ${VLESS_PORT:-2053}. Probes fall through to
+#                          this node's own HTTPS proxy (VLESS_DEST, default 127.0.0.1:443).
+#   ENABLE_SHADOWSOCKS=1   Shadowsocks-2022 on TCP/UDP ${SS_PORT:-16080}.
+#   ENABLE_WS=1            VLESS and/or Shadowsocks over WebSocket, TLS on the existing port 443
+#                          (a secret path). Needs ENABLE_VLESS=1 or ENABLE_SHADOWSOCKS=1.
+#                          WS_HOST / WS_SNI / WS_PORT override the name clients use (a CDN hostname).
 # Prints the node's nodes.json entry at the end (WireGuard key, OpenVPN CA and tls-crypt key included).
+# VLESS ids and Shadowsocks passwords in that entry are node secrets: paste them into NODES only.
 set -euo pipefail
 
 : "${NODE_ID:?set NODE_ID}" "${DOMAIN:?set DOMAIN}" "${TOKEN_SECRET:?set TOKEN_SECRET}" "${AGENT_SECRET:?set AGENT_SECRET}" "${CONTROL_IP:?set CONTROL_IP}"
 TOR="${TOR:-0}"
 IKEV2="${IKEV2:-1}"
 OPENVPN="${OPENVPN:-1}"
+ENABLE_VLESS="${ENABLE_VLESS:-0}"
+ENABLE_SHADOWSOCKS="${ENABLE_SHADOWSOCKS:-0}"
+ENABLE_WS="${ENABLE_WS:-0}"
+# Keep the version and the two SHA2-256 pins in sync with shared/proxyproto.js (XRAY_VERSION, XRAY_SHA256).
+XRAY_VERSION="${XRAY_VERSION:-v26.11.9}"
+VLESS_PORT="${VLESS_PORT:-2053}"
+SS_PORT="${SS_PORT:-16080}"
+VLESS_SNI="${VLESS_SNI:-$DOMAIN}"
+VLESS_DEST="${VLESS_DEST:-127.0.0.1:443}"
+VLESS_FINGERPRINT="${VLESS_FINGERPRINT:-chrome}"
+SS_METHOD="${SS_METHOD:-2022-blake3-aes-128-gcm}"
+WS_PORT="${WS_PORT:-443}"
+WS_HOST="${WS_HOST:-$DOMAIN}"
+WS_SNI="${WS_SNI:-$WS_HOST}"
+VLESS_WS_LOCAL="${VLESS_WS_LOCAL:-10481}"
+SS_WS_LOCAL="${SS_WS_LOCAL:-10482}"
+XRAY_ON=0
+port_ok() { case "$1" in ''|*[!0-9]*) return 1 ;; esac; [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; }
+reserved_port() { case "$1" in 22|80|443|500|4500|1194|51820|9101|9102) return 0 ;; *) return 1 ;; esac; }
+for flag in "$ENABLE_VLESS" "$ENABLE_SHADOWSOCKS" "$ENABLE_WS" "$TOR" "$IKEV2" "$OPENVPN"; do
+  case "$flag" in 0|1) ;; *) echo "protocol flags must be 0 or 1" >&2; exit 1 ;; esac
+done
+if [ "$ENABLE_WS" = 1 ] && [ "$ENABLE_VLESS" != 1 ] && [ "$ENABLE_SHADOWSOCKS" != 1 ]; then
+  echo "ENABLE_WS=1 needs ENABLE_VLESS=1 or ENABLE_SHADOWSOCKS=1" >&2; exit 1
+fi
+if [ "$ENABLE_VLESS" = 1 ]; then
+  port_ok "$VLESS_PORT" || { echo "VLESS_PORT must be a port" >&2; exit 1; }
+  if reserved_port "$VLESS_PORT"; then echo "VLESS_PORT ${VLESS_PORT} is already used by another VEIL service" >&2; exit 1; fi
+fi
+if [ "$ENABLE_SHADOWSOCKS" = 1 ]; then
+  port_ok "$SS_PORT" || { echo "SS_PORT must be a port" >&2; exit 1; }
+  if reserved_port "$SS_PORT"; then echo "SS_PORT ${SS_PORT} is already used by another VEIL service" >&2; exit 1; fi
+fi
+if [ "$ENABLE_VLESS" = 1 ] && [ "$ENABLE_SHADOWSOCKS" = 1 ] && [ "$VLESS_PORT" = "$SS_PORT" ]; then
+  echo "VLESS_PORT and SS_PORT must differ" >&2; exit 1
+fi
+port_ok "$WS_PORT" || { echo "WS_PORT must be a port" >&2; exit 1; }
+if [ "$ENABLE_WS" = 1 ]; then
+  port_ok "$VLESS_WS_LOCAL" && port_ok "$SS_WS_LOCAL" || { echo "WebSocket local ports must be ports" >&2; exit 1; }
+  if [ "$ENABLE_VLESS" = 1 ] && [ "$ENABLE_SHADOWSOCKS" = 1 ] && [ "$VLESS_WS_LOCAL" = "$SS_WS_LOCAL" ]; then
+    echo "WebSocket local ports must differ" >&2; exit 1
+  fi
+  for lp in "$VLESS_WS_LOCAL" "$SS_WS_LOCAL"; do
+    if reserved_port "$lp"; then echo "WebSocket local port ${lp} collides with a VEIL service" >&2; exit 1; fi
+    if [ "$ENABLE_VLESS" = 1 ] && [ "$lp" = "$VLESS_PORT" ]; then echo "WebSocket local port collides with VLESS_PORT" >&2; exit 1; fi
+    if [ "$ENABLE_SHADOWSOCKS" = 1 ] && [ "$lp" = "$SS_PORT" ]; then echo "WebSocket local port collides with SS_PORT" >&2; exit 1; fi
+  done
+fi
+XRAY_NFT=""
+if [ "$ENABLE_VLESS" = 1 ]; then
+  XRAY_NFT="${XRAY_NFT}    tcp dport ${VLESS_PORT} accept                # VLESS Reality
+"
+fi
+if [ "$ENABLE_SHADOWSOCKS" = 1 ]; then
+  XRAY_NFT="${XRAY_NFT}    tcp dport ${SS_PORT} accept                   # Shadowsocks-2022
+    udp dport ${SS_PORT} accept
+"
+fi
 # Public hosts list (MIT licence, ads + tracking); refreshed weekly.
 BLOCKLIST_URL="${BLOCKLIST_URL-https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts}"
 WAN_IF="$(ip -o -4 route show to default | awk '{print $5}' | head -1)"
@@ -25,7 +91,10 @@ APP_DIR=/opt/veil
 
 echo "==> Packages"
 apt-get update -y
-apt-get install -y wireguard nftables unbound certbot curl ca-certificates
+# unzip is only there to unpack the Xray zip; the VPN itself does not use it.
+XRAY_PKG=""
+if [ "$ENABLE_VLESS" = 1 ] || [ "$ENABLE_SHADOWSOCKS" = 1 ]; then XRAY_PKG=unzip; fi
+apt-get install -y wireguard nftables unbound certbot curl ca-certificates $XRAY_PKG
 [ "$TOR" = 1 ] && apt-get install -y tor
 [ "$IKEV2" = 1 ] && apt-get install -y strongswan-swanctl charon-systemd libcharon-extra-plugins libstrongswan-extra-plugins
 [ "$OPENVPN" = 1 ] && apt-get install -y openvpn openssl
@@ -97,7 +166,7 @@ table inet veil {
     meta l4proto esp accept
     udp dport 1194 accept                 # OpenVPN UDP
     tcp dport 1194 accept                 # OpenVPN TCP
-    meta mark 0x766c udp dport 53 accept  # DNS for VPN clients
+${XRAY_NFT}    meta mark 0x766c udp dport 53 accept  # DNS for VPN clients
     meta mark 0x766c tcp dport 53 accept
     meta mark 0x766c ip saddr @tor_peers tcp dport 9040 accept   # Tor transparent proxy
     meta mark 0x766c ip saddr @tor_peers udp dport 9053 accept   # Tor DNS
@@ -364,6 +433,73 @@ HOOK_PORT=9102
 EOF
 [ "$TOR" = 1 ] && echo "TOR_SOCKS=127.0.0.1:9050" >> /etc/veil-node.env
 [ "$IKEV2" = 1 ] && echo "SWAN_SECRETS=/etc/swanctl/conf.d/veil-secrets.conf" >> /etc/veil-node.env
+if [ "$ENABLE_VLESS" = 1 ] || [ "$ENABLE_SHADOWSOCKS" = 1 ]; then
+  echo "==> Xray-core ${XRAY_VERSION} (VLESS Reality / Shadowsocks-2022, off unless opted in)"
+  install_xray() {
+    local zip pin tmp actual published have
+    case "$(uname -m)" in
+      x86_64|amd64) zip=Xray-linux-64.zip; pin=b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82 ;;
+      aarch64|arm64) zip=Xray-linux-arm64-v8a.zip; pin=64ed6858982a7f5eb85d88b811089063bd4f17561f4c8f44e0f1dc8e6f6430be ;;
+      *) echo "Xray-core: unsupported architecture $(uname -m)" >&2; exit 1 ;;
+    esac
+    have=$(/usr/local/bin/xray version 2>/dev/null | awk 'NR==1{print; exit}' || true)
+    case "$have" in *"${XRAY_VERSION#v}"*) return 0 ;; esac
+    tmp=$(mktemp -d)
+    curl -fsSL --max-time 180 -o "$tmp/xray.zip" "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/${zip}"
+    curl -fsSL --max-time 60 -o "$tmp/xray.zip.dgst" "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/${zip}.dgst"
+    published=$(awk -F= '/^SHA2-256=/ { gsub(/[[:space:]]/, "", $2); print $2 }' "$tmp/xray.zip.dgst")
+    actual=$(sha256sum "$tmp/xray.zip" | awk '{print $1}')
+    if [ "$published" != "$pin" ] || [ "$actual" != "$pin" ]; then
+      echo "Xray-core checksum mismatch for ${XRAY_VERSION} ${zip}" >&2
+      rm -rf "$tmp"
+      exit 1
+    fi
+    unzip -o -j "$tmp/xray.zip" xray -d /usr/local/bin >/dev/null
+    chmod 755 /usr/local/bin/xray
+    rm -rf "$tmp"
+  }
+  install_xray
+  mkdir -p /etc/veil /var/lib/veil
+  chmod 750 /etc/veil
+  chown root:veil /etc/veil
+  export ENABLE_VLESS ENABLE_SHADOWSOCKS ENABLE_WS DOMAIN VLESS_PORT SS_PORT VLESS_SNI VLESS_DEST \
+    VLESS_FINGERPRINT SS_METHOD WS_PORT WS_HOST WS_SNI VLESS_WS_LOCAL SS_WS_LOCAL
+  export XRAY_DNS=10.66.0.1
+  export XRAY_STATE=/var/lib/veil/xray-state.json XRAY_CONFIG=/etc/veil/xray.json \
+    XRAY_ENV=/var/lib/veil/xray-node.env XRAY_PUBLIC=/var/lib/veil/xray-public.json \
+    XRAY_FRAGMENT=/var/lib/veil/xray-fragment.txt
+  node "$(cd "$(dirname "$0")/.." && pwd)/shared/proxyproto.js" provision >/dev/null
+  chown root:veil /etc/veil/xray.json
+  chmod 640 /etc/veil/xray.json
+  cat /var/lib/veil/xray-node.env >> /etc/veil-node.env
+  cat > /etc/systemd/system/veil-xray.service <<'EOF'
+[Unit]
+Description=VEIL Xray (VLESS and Shadowsocks)
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+[Service]
+User=veil
+Group=veil
+ExecStart=/usr/local/bin/xray run -config /etc/veil/xray.json
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+LimitNOFILE=65535
+StandardOutput=null
+StandardError=journal
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now veil-xray
+  XRAY_ON=1
+else
+  systemctl disable --now veil-xray 2>/dev/null || true
+fi
 chmod 600 /etc/veil-node.env
 cat > /etc/systemd/system/veil-node.service <<EOF
 [Unit]
@@ -399,13 +535,20 @@ EXTRA=""
   \"openvpn\": { \"host\": \"${DOMAIN}\", \"udp\": 1194, \"tcp\": 1194, \"ca\": $(jstr /etc/openvpn/server/veil-ca.crt), \"tlsCrypt\": $(jstr /etc/openvpn/server/veil-tc.key) }"
 [ "$TOR" = 1 ] && EXTRA="${EXTRA},
   \"tor\": true"
+PROTO_JSON=""
+if [ "$XRAY_ON" = 1 ]; then
+  PROTO_JSON="$(cat /var/lib/veil/xray-fragment.txt)"
+fi
 
 echo
 echo "Node ${NODE_ID} is up."
+if [ "$XRAY_ON" = 1 ]; then
+  echo "VLESS ids and Shadowsocks passwords below are node secrets. Put them only in NODES, never in git."
+fi
 echo "Add this to the NODES list (control/nodes.json, or the Worker's NODES variable):"
 cat <<EOF
 { "id": "${NODE_ID}", "city": "CITY", "country": "COUNTRY", "flag": "FLAG", "region": "eu",
   "agentUrl": "https://${DOMAIN}:9101",
   "proxy": { "scheme": "https", "host": "${DOMAIN}", "port": 443 },
-  "wg": { "endpoint": "${DOMAIN}:51820", "publicKey": "${WG_PUB}", "dns": "10.66.0.1" }${EXTRA} }
+  "wg": { "endpoint": "${DOMAIN}:51820", "publicKey": "${WG_PUB}", "dns": "10.66.0.1" }${EXTRA}${PROTO_JSON} }
 EOF

@@ -67,11 +67,17 @@ class Bridge(
         "wallet" -> api.call("POST", "/v1/wallet", JSONObject().put("address", p.opt("address") ?: JSONObject.NULL)).toString()
         "claim" -> api.call("POST", "/v1/claim").toString()
         // A set-up for another device (laptop, iPhone, router): WireGuard needs the public key the
-        // interface generated; the private key never leaves the interface.
-        "manual" -> api.call("POST", "/v1/connect", JSONObject()
-            .put("server", p.getString("server")).put("mode", p.getString("mode")).put("manual", true)
-            .put("publicKey", p.optString("publicKey", "")).put("tor", prefs.getBoolean("tor", false))
-            .put("block", prefs.getBoolean("block", true))).toString()
+        // interface generated; the private key never leaves the interface. VLESS and Shadowsocks
+        // are one credential per node, so they are not sent through Tor with this device.
+        "manual" -> {
+            val mode = p.getString("mode")
+            val proxyMode = mode == "vless" || mode == "vless-ws" || mode == "shadowsocks" || mode == "shadowsocks-ws"
+            api.call("POST", "/v1/connect", JSONObject()
+                .put("server", p.getString("server")).put("mode", mode).put("manual", true)
+                .put("publicKey", p.optString("publicKey", ""))
+                .put("tor", if (proxyMode) false else prefs.getBoolean("tor", false))
+                .put("block", prefs.getBoolean("block", true))).toString()
+        }
         "settings" -> JSONObject()
             .put("proto", Vpn.chosenProtocol(ctx))
             .put("ikev2", Ikev2.supported())

@@ -131,12 +131,15 @@
       <li><span>Connect on launch</span><label class="switch"><input type="checkbox" data-set="auto"><span></span><b class="sr">Connect on launch</b></label></li>
       <li><span>Earn $VEIL</span><label class="switch"><input type="checkbox" data-set="earn" checked><span></span><b class="sr">Earn VEIL</b></label></li>
       <li><span>Protocol <small id="proto-hint">WireGuard: fastest, modern cryptography</small></span><select data-set="proto" aria-label="Protocol"><option value="wireguard">WireGuard</option><option value="ikev2">IKEv2/IPsec</option><option value="openvpn">OpenVPN</option></select></li>
+      <li><span>VLESS <small>XTLS Reality, for networks that block VPNs. Off until you turn it on. Used from Other devices.</small></span><label class="switch"><input type="checkbox" data-set="vless"><span></span><b class="sr">VLESS</b></label></li>
+      <li><span>Shadowsocks <small>Shadowsocks-2022. Off until you turn it on. Used from Other devices.</small></span><label class="switch"><input type="checkbox" data-set="shadowsocks"><span></span><b class="sr">Shadowsocks</b></label></li>
+      <li><span>WebSocket on 443 <small>VLESS and Shadowsocks over WebSocket and TLS, including behind a CDN. Off until you turn it on.</small></span><label class="switch"><input type="checkbox" data-set="ws"><span></span><b class="sr">WebSocket on 443</b></label></li>
       <li class="wallet-row"><span>FIRM Wallet</span>
         <form id="wallet-form" class="wallet-form"><label class="sr" for="wallet-input">Solana address</label><input id="wallet-input" class="mono" placeholder="Solana address" autocomplete="off" spellcheck="false"><button class="ghost" id="link-wallet" type="submit">Link</button></form></li>
     </ul>
     <section class="devices" aria-labelledby="h-devices">
       <h3 id="h-devices">Other devices</h3>
-      <p>Use VEIL on a laptop, iPhone, Mac, PC or router with a standard VPN app or the one built in. A set-up uses the location picked above, lasts 7 days and does not earn $VEIL.</p>
+      <p>Use VEIL on a laptop, iPhone, Mac, PC or router with a standard VPN app or the one built in. A set-up uses the location picked above, lasts 7 days and does not earn $VEIL. VLESS and Shadowsocks stay hidden until you turn them on above. Import them into Xray, v2rayNG or sing-box. This app's own tunnel stays WireGuard, IKEv2 or the browser proxy.</p>
       <div class="devices-form">
         <label class="sr" for="dev-proto">Set-up type</label>
         <select id="dev-proto">

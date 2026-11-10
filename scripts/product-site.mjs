@@ -30,7 +30,7 @@ const APPS = [
 const topbar = `<header class="topbar"><a class="brand" href="/">VEIL&lt;/&gt;<sup>™</sup><span class="brand-vpn">VPN</span></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden>${APPS.map(([h, n, s]) => `<a class="menu-app" role="menuitem" href="${h}" rel="noreferrer"><span class="menu-app-name">${n}</span><span class="menu-app-summary">${s}</span></a>`).join('')}</div></div>
-<a class="nav-link" href="/#get">Download</a></nav></header>`;
+<a class="nav-link" href="/#get">Download</a></nav><span class="cid-slot" data-cumulus-id data-label="Sign in"></span></header>`;
 const appsStrip = `<nav class="apps" aria-label="Infinitum apps"><a class="app-link" href="https://infinitumveil.app/" target="_blank" rel="noopener noreferrer">VEIL&lt;/&gt;™ browser</a><a class="app-link" href="https://rchtch.app/" target="_blank" rel="noopener noreferrer">:\\ARCHITCT\\™</a><a class="app-link" href="https://scalvs.app/" target="_blank" rel="noopener noreferrer">SCALVS.ai™</a><a class="app-link" href="https://infinitumfabric.app/" target="_blank" rel="noopener noreferrer">FABRIC++™</a></nav>`;
 const footer = `<footer><span>AI-powered. Blockchain-governed™.</span><span class="footer-right"><a class="footer-link" href="/privacy">Privacy</a><a class="footer-link" href="mailto:info@theinfinitumcorporation.com">Contact</a><span class="quiet">© 2026 Infinitum Corporation</span></span></footer>`;
 
@@ -51,6 +51,7 @@ function page({ route = '/', title, desc, body, cls = '', robots = 'index, follo
 <link rel="stylesheet" href="/veil.css">
 <link rel="stylesheet" href="/i18n/i18n.css">
 <script type="module" src="/i18n/start.js"></script>
+<style id="cid-style">.cid-slot{display:inline-flex;align-items:center;margin-left:12px}@media (max-width:720px){.cid-slot .cid-who{display:none}}</style>
 </head>
 <body class="${cls}">
 ${topbar}
@@ -58,6 +59,8 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
+<!-- Sign in with Cumulus://ID (copy of mail.cumuluscloud.app/id/button.js) -->
+<script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
 </body>
 </html>
 `;
