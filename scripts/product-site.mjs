@@ -57,8 +57,8 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
-<!-- Sign in with Cumulus://ID (copy of mail.cumuluscloud.app/id/button.js) -->
-<script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
+<!-- Sign in with Cumulus://ID (https://id.cumuluscloud.app/id/button.js) -->
+<script src="https://id.cumuluscloud.app/id/button.js" data-client="veil-vpn" defer></script>
 </body>
 </html>
 `;
