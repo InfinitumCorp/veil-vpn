@@ -9,6 +9,6 @@
     "build": "node scripts/build.mjs",
     "control": "node --env-file=.env control/server.js",
     "node": "node --env-file=.env node/node.js",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   }
 }

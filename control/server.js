@@ -85,6 +85,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 export const closeEpoch = (d) => control.closeEpoch(adb, d);
+export const pollHealth = () => control.pollHealth();
 export function start(port = PORT) {
   control.pollHealth(); setInterval(control.pollHealth, 30_000).unref();
   return new Promise((r) => server.listen(port, () => { console.log(`control listening on :${server.address().port}`); r(server); }));

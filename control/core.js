@@ -15,6 +15,7 @@
 // in-memory rate-limit key and for the daily-keyed network hash in fraud.js; it is never stored.
 import { randomBytes, createHash, createHmac } from 'node:crypto';
 import { sign } from '../shared/token.js';
+import { modesOf, clientBundle, serviceBlocks, PROXY_MODES, responseKey, issues } from '../shared/proxyproto.js';
 import { createFraud } from './fraud.js';
 import { RATE_PER_MIN, MAX_MIN, REF_PRICE, split, memberShare } from '../shared/economics.js';
 
@@ -38,13 +39,17 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const CPC_USD = Number(env('CPC_USD', 0.10));  // estimated revenue per click
   const TOKEN_TTL = Number(env('TOKEN_TTL_MS', 15 * 60_000));
   const MANUAL_TTL = Number(env('MANUAL_TTL_MS', 7 * 86_400_000));
-  const MODES = ['proxy', 'wireguard', 'ikev2', 'openvpn'];
+  const MODES = ['proxy', 'wireguard', 'ikev2', 'openvpn', ...PROXY_MODES];
   const DEV = env('NODE_ENV', 'development') !== 'production';
   for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY })) {
     if (v.length < 24) throw new Error(`${k} must be set to at least 24 characters`);
   }
 
   const NODES = nodes;
+  for (const n of NODES) {
+    const bad = issues(n);
+    if (bad.length) throw new Error(`node ${n.id || '?'}: ${bad.join('; ')}`);
+  }
   const ADS = ads;
   const fraud = createFraud({ secret: TOKEN_SECRET, maxMinutes: MAX_MIN, env });
 
@@ -77,8 +82,10 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   }
   async function pollHealth() {
     await Promise.all(NODES.map(async (n) => {
-      try { const h = await agent(n, 'GET', '/health'); health.set(n.id, { up: true, load: Math.min(100, Math.round(h.load ?? 0)), checked: Date.now() }); }
-      catch { health.set(n.id, { up: false, load: 0, checked: Date.now() }); }
+      try {
+        const h = await agent(n, 'GET', '/health');
+        health.set(n.id, { up: true, load: Math.min(100, Math.round(h.load ?? 0)), checked: Date.now(), services: h.services && typeof h.services === 'object' ? h.services : null });
+      } catch { health.set(n.id, { up: false, load: 0, checked: Date.now(), services: null }); }
     }));
   }
   // Workers have no background timers: refresh node health when it is older than 30 s.
@@ -91,8 +98,6 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
 
   const publicNode = (n) => ({ id: n.id, city: n.city, country: n.country, flag: n.flag, region: n.region,
     load: health.get(n.id).load, online: health.get(n.id).up, modes: modesOf(n), tor: !!n.tor });
-  // Protocols a node offers: HTTPS proxy (browsers) always; WireGuard, IKEv2/IPsec and OpenVPN when configured.
-  const modesOf = (n) => ['proxy', ...(n.wg ? ['wireguard'] : []), ...(n.ikev2 ? ['ikev2'] : []), ...(n.openvpn ? ['openvpn'] : [])];
   const nodeById = (id) => NODES.find((n) => n.id === id) || fail(404, 'unknown_server');
 
   // ---------- auth ----------
@@ -195,21 +200,25 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       const n = nodeById(String(body.server || ''));
       await freshHealth();
       if (!health.get(n.id).up && !DEV) fail(503, 'server_offline');
-      // Tor over VPN: the node sends this user's traffic into Tor (only nodes with "tor": true).
-      const tor = body.tor === true;
+      const mode = MODES.includes(body.mode) ? body.mode : 'proxy';
+      // VLESS and Shadowsocks have one credential per node, so they cannot follow a single user into Tor.
+      const tor = body.tor === true && !PROXY_MODES.includes(mode);
       if (tor && !n.tor) fail(400, 'tor_unavailable');
-      // Tracker blocking is on unless the user switched it off.
-      const block = body.block !== false;
+      // Tracker blocking is on unless the user switched it off. Xray's resolver is node-wide, so it stays on.
+      const block = PROXY_MODES.includes(mode) ? true : body.block !== false;
       // "manual": a set-up for another device (a .conf / .ovpn file or IKEv2 details) that lasts 7 days
       // and earns nothing; it does not replace this device's own connection lease.
       const manual = body.manual === true;
       const exp = Date.now() + (manual ? MANUAL_TTL : TOKEN_TTL);
-      const mode = MODES.includes(body.mode) ? body.mode : 'proxy';
       if (mode !== 'proxy' && !modesOf(n).includes(mode)) fail(400, `${mode}_unavailable`);
+      if (serviceBlocks(health.get(n.id).services, mode)) fail(503, 'server_offline');
       if (manual && mode === 'proxy') fail(400, 'manual_needs_vpn_protocol');
       if (!manual) await db.run(`INSERT INTO conns (sid, node, mode, exp) VALUES (?, ?, ?, ?)
         ON CONFLICT (sid) DO UPDATE SET node = excluded.node, mode = excluded.mode, exp = excluded.exp`, s.id, n.id, mode, exp);
 
+      if (PROXY_MODES.includes(mode)) {
+        return { mode, server: publicNode(n), exp, tor: false, block: true, manual, [responseKey(mode)]: clientBundle(n, mode) };
+      }
       if (mode === 'ikev2' || mode === 'openvpn') {
         const acct = account(s, n);
         await agent(n, 'POST', '/accounts', { ...acct, exp, tor, block, manual, protocol: mode });

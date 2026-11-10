@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -15,13 +16,18 @@ Object.assign(process.env, {
   NODES_FILE: path.join(dir, 'nodes.json'), FRAUD_NET_MAX: '4', FRAUD_BLOCK_EMULATORS: '1', TOR_SOCKS: '127.0.0.1:19150', HOOK_PORT: '19102',
 });
 const { writeFileSync } = await import('node:fs');
+const VLESS_ID = '00000000-0000-4000-8000-0000000000a1';
+const VLESS_PUB = randomBytes(32).toString('base64url');
+const SS_PW = randomBytes(16).toString('base64');
 // Tracker blocking: the built-in list plus a test list in hosts-file format.
 process.env.BLOCKLIST = [path.join(import.meta.dirname, '..', 'node', 'blocklist.txt'), path.join(dir, 'extra.txt')].join(',');
 writeFileSync(path.join(dir, 'extra.txt'), '# test list\n0.0.0.0 tracker.veil-test.example\n0.0.0.0 localhost\n');
 writeFileSync(process.env.NODES_FILE, JSON.stringify([{ id: 'local-dev', city: 'Test', country: 'Here', flag: '🖥️', region: 'global',
   agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 },
   wg: { endpoint: '127.0.0.1:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true,
-  ikev2: { host: 'vpn.veil-test.example' }, openvpn: { host: 'vpn.veil-test.example', ca: '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----',tlsCrypt: 'TLSCRYPT' } },
+  ikev2: { host: 'vpn.veil-test.example' }, openvpn: { host: 'vpn.veil-test.example', ca: '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----',tlsCrypt: 'TLSCRYPT' },
+  vless: { id: VLESS_ID, host: 'vpn.veil-test.example', reality: { port: 2053, publicKey: VLESS_PUB, shortId: '0011223344556677', sni: 'vpn.veil-test.example', fingerprint: 'chrome', flow: 'xtls-rprx-vision' }, ws: { port: 443, path: '/vless/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } },
+  shadowsocks: { host: 'vpn.veil-test.example', method: '2022-blake3-aes-128-gcm', password: SS_PW, port: 16080, ws: { port: 443, path: '/ss/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } } },
   { id: 'no-tor', city: 'Plain', country: 'Here', flag: '🖥️', region: 'global', agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 } }]));
 
 const B = 'http://127.0.0.1:18787';
@@ -165,7 +171,7 @@ test('WireGuard connect registers a peer and returns a config', async () => {
 
 test('IKEv2 and OpenVPN logins: listed, accepted by the node hook, bound to a tunnel IP', async () => {
   const list = (await j('/v1/servers')).body.servers;
-  assert.deepEqual(list.find((x) => x.id === 'local-dev').modes, ['proxy', 'wireguard', 'ikev2', 'openvpn']);
+  assert.deepEqual(list.find((x) => x.id === 'local-dev').modes, ['proxy', 'wireguard', 'ikev2', 'openvpn', 'vless', 'vless-ws', 'shadowsocks', 'shadowsocks-ws']);
   assert.deepEqual(list.find((x) => x.id === 'no-tor').modes, ['proxy']);
   const hook = (p, body) => fetch(`http://127.0.0.1:19102${p}`, { method: 'POST', body }).then((r) => r.status);
 
@@ -450,6 +456,46 @@ test('tracker blocking: the proxy refuses trackers, counts them, and respects th
   assert.notEqual(through.headers['x-veil-blocked'], 'tracker');
   const h = await fetch('http://127.0.0.1:19101/health', { headers: { authorization: `Bearer ${process.env.AGENT_SECRET}` } }).then((r) => r.json());
   assert.ok(h.blocklist > 80); assert.ok(h.blockedToday >= 2);
+});
+
+test('VLESS and Shadowsocks links are handed out after login and stay off the public list', async () => {
+  const listed = JSON.stringify((await j('/v1/servers')).body);
+  assert.equal(listed.includes(VLESS_ID), false);
+  assert.equal(listed.includes(VLESS_PUB), false);
+  assert.equal(listed.includes(SS_PW), false);
+  const v = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'vless', manual: true, tor: true } });
+  assert.equal(v.status, 200, JSON.stringify(v.body));
+  assert.equal(v.body.tor, false);
+  assert.equal(v.body.manual, true);
+  assert.match(v.body.vless.link, /^vless:\/\/00000000-0000-4000-8000-0000000000a1@/);
+  assert.equal(v.body.vless.xray.outbounds[0].streamSettings.security, 'reality');
+  assert.equal(v.body.vless.persistent, true);
+  const ws = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'vless-ws', manual: true } });
+  assert.equal(ws.status, 200, JSON.stringify(ws.body));
+  assert.equal(new URL(ws.body.vlessWs.link).searchParams.get('type'), 'ws');
+  assert.equal(new URL(ws.body.vlessWs.link).port, '443');
+  const ss = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'shadowsocks', manual: true } });
+  assert.equal(ss.status, 200, JSON.stringify(ss.body));
+  assert.equal(Buffer.from(new URL(ss.body.shadowsocks.link).username, 'base64url').toString(), `2022-blake3-aes-128-gcm:${SS_PW}`);
+  const ssw = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'shadowsocks-ws', manual: true } });
+  assert.equal(ssw.status, 200);
+  assert.equal(ssw.body.shadowsocksWs.singbox.outbounds[0].transport.type, 'ws');
+  assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'no-tor', mode: 'vless' } })).body.error, 'vless_unavailable');
+  // manual: true does not replace the app's own lease.
+  assert.notEqual((await j('/v1/me', { token })).body.connection?.mode, 'vless');
+});
+
+test('a down Xray inbound fails that protocol and leaves the others up', async () => {
+  process.env.XRAY_REALITY_ADDR = '127.0.0.1:1';
+  const { pollHealth } = await import('../control/server.js');
+  await pollHealth();
+  const down = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'vless', manual: true } });
+  assert.equal(down.status, 503);
+  assert.equal(down.body.error, 'server_offline');
+  const still = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'shadowsocks', manual: true } });
+  assert.equal(still.status, 200, JSON.stringify(still.body));
+  delete process.env.XRAY_REALITY_ADDR;
+  await pollHealth();
 });
 
 test('disconnect ends rewards', async () => {
