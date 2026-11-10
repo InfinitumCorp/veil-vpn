@@ -13,12 +13,18 @@ const CONTROL_URL = (process.env.CONTROL_URL || 'http://127.0.0.1:8787').replace
 const econ = readFileSync(p('shared/economics.js'), 'utf8');
 writeFileSync(p('veil-vpn/economics.js'), `// GENERATED from shared/economics.js by scripts/build.mjs. Do not edit here.\n${econ}`);
 
+// Interface language (@infinitum/i18n): runtime and build-time catalogs from veil-vpn/i18n (no model calls).
+const I18N = ['i18n.js', 'i18n.css', 'start.js', 'catalogs.js'];
+const copyI18n = (dest) => { mkdirSync(path.join(dest, 'i18n'), { recursive: true }); for (const f of I18N) cpSync(p('veil-vpn/i18n', f), path.join(dest, 'i18n', f)); };
+
 // 2. Extension bundle.
 const out = p('dist/extension');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(p('dist/extension/icons'), { recursive: true });
 for (const f of ['manifest.json', 'background.js']) cpSync(p('extension', f), path.join(out, f));
 for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg', 'firm-suite.js', 'firm-suite.css']) cpSync(p('veil-vpn', f), path.join(out, f));
+copyI18n(out);
+cpSync(p('extension/_locales'), path.join(out, '_locales'), { recursive: true });
 writeFileSync(path.join(out, 'config.js'), `export const CONTROL_URL = ${JSON.stringify(CONTROL_URL)};\n`);
 const html = readFileSync(p('veil-vpn/index.html'), 'utf8')
   .replace(/<link rel="manifest"[^>]*>\n?/, '')
@@ -80,6 +86,7 @@ rmSync(www, { recursive: true, force: true });
 mkdirSync(www, { recursive: true });
 for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg', 'firm-suite.js', 'firm-suite.css']) cpSync(p('veil-vpn', f), path.join(www, f));
 writeFileSync(path.join(www, 'index.html'), html);
+copyI18n(www);
 
 // 5. Landing page: site/ to dist/site, ready for any static host. index.html is written without
 // the document wrapper (so it can also be published as a page preview); add it here.
