@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -82,13 +84,21 @@ class MainActivity : ComponentActivity() {
         ), "VeilAndroid")
 
         // Android 15+ draws edge to edge: keep the interface clear of the status and navigation bars.
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.WHITE); addView(web) }
+        // Banner slot sits under the existing WebView and stays GONE (no layout change) until an ad loads.
+        val bannerSlot = FrameLayout(this).apply { visibility = View.GONE }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            addView(web, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(bannerSlot, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(b.left, b.top, b.right, b.bottom)
             WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
+        Ads.attach(this, bannerSlot)
         WindowCompat.getInsetsController(window, root).apply {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true

@@ -32,6 +32,9 @@ android {
         versionCode = (findProperty("veilVersionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("veilVersionName") as String?) ?: "0.1.0"
         buildConfigField("String", "CONTROL_URL", "\"$controlUrl\"")
+        // Ads stay off until ADS_ENABLED is flipped to true.
+        buildConfigField("boolean", "ADS_ENABLED", "false")
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"ca-app-pub-3940256099942544/6300978111\"")
     }
 
     buildFeatures { buildConfig = true }
@@ -49,12 +52,17 @@ android {
         // Debug builds install next to the release app (own package, own name).
         debug {
             applicationIdSuffix = ".debug"
+            buildConfigField("boolean", "ADS_ENABLED", "false")
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"ca-app-pub-3940256099942544/6300978111\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (canSign) signingConfig = signingConfigs.getByName("release")
+            // Flip ADS_ENABLED to true to serve the real banner in release. Off until then.
+            buildConfigField("boolean", "ADS_ENABLED", "false")
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"ca-app-pub-7308175971826620/5069753910\"")
         }
     }
 
@@ -74,6 +82,8 @@ tasks.matching { it.name.matches(Regex("(assemble|bundle)Release")) }.configureE
 }
 
 dependencies {
+    implementation("com.google.android.gms:play-services-ads:24.7.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.2.0")
     implementation("com.wireguard.android:tunnel:1.0.20230706")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
