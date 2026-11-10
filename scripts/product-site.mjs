@@ -27,7 +27,7 @@ const APPS = [
   [`${MAIN}/products/scalus`, 'SCALVS.ai™', 'AI workforce platform'],
   [`${HUB}/`, 'All Infinitum apps', 'Every app and download'],
 ];
-const topbar = `<header class="topbar"><a class="brand" href="/">VEIL&lt;/&gt;<sup>™</sup><span class="brand-vpn">VPN</span></a><span class="spacer"></span>
+const topbar = `<header class="topbar"><a class="brand" href="/">V | VPN<sup>™</sup></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden>${APPS.map(([h, n, s]) => `<a class="menu-app" role="menuitem" href="${h}" rel="noreferrer"><span class="menu-app-name">${n}</span><span class="menu-app-summary">${s}</span></a>`).join('')}</div></div>
 <a class="nav-link" href="/#get">Download</a></nav><span class="cid-slot" data-cumulus-id data-label="Sign in"></span></header>`;
@@ -143,9 +143,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 .topbar { display: flex; align-items: center; gap: 0 12px; min-height: 52px; padding: env(safe-area-inset-top, 0px) 14px 0; border-bottom: 1px solid var(--rule); }
-.brand { display: inline-flex; align-items: center; height: 52px; font-size: 19px; letter-spacing: -0.04em; text-decoration: none; white-space: nowrap; }
-.brand sup { font-size: .5em; letter-spacing: 0; margin-left: 1px; align-self: flex-start; margin-top: 15px; }
-.brand-vpn { margin-left: 8px; font-size: 12px; letter-spacing: .08em; color: var(--ink-quiet); }
+/* Logo: text wordmark in the brand font, weight 500, normal tracking (Infinitum brand.css .wordmark). */
+.brand { display: inline-flex; align-items: center; height: 52px; font-size: 20px; font-weight: 500; letter-spacing: normal; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.brand sup { font-size: .38em; font-weight: 400; letter-spacing: 0; margin-left: .08em; align-self: flex-start; margin-top: 16px; }
 .spacer { flex: 1; }
 .top-links { display: flex; align-items: center; gap: 22px; }
 .nav-link { position: relative; padding: 8px 0; font-size: 13px; color: var(--ink); text-decoration: none; white-space: nowrap; background: none; border: 0; }
