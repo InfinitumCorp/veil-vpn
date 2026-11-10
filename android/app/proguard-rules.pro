@@ -4,3 +4,6 @@
 }
 # WireGuard backend uses JNI.
 -keep class com.wireguard.android.backend.** { *; }
+# Amplitude Android SDK
+-keep class com.amplitude.** { *; }
+-dontwarn com.amplitude.**

@@ -59,6 +59,8 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
+<script src="/amplitude.vendor.js" defer></script>
+<script src="/amplitude-boot.js" defer></script>
 <!-- Sign in with Cumulus://ID (copy of https://id.cumuluscloud.app/id/button.js) -->
 <script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
 </body>
