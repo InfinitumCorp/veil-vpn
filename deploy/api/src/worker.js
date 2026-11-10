@@ -4,13 +4,17 @@
 // Configuration (Worker env):
 //   secrets  TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY (24+ chars each)
 //            DATABASE_URL (Supabase pooler URI, port 6543), unless the HYPERDRIVE binding is set
-//   vars     NODE_ENV=production, NODES (JSON array, same shape as control/nodes.json),
+//   vars     NODE_ENV=production, optional NODES (JSON array, same shape as control/nodes.json;
+//            without it the servers in nodes.json, bundled with this Worker, are used),
 //            optional CPM_USD, CPC_USD, FRAUD_* tuning
 // Client IPs (cf-connecting-ip) are used only in memory for rate limits and the daily-keyed
 // network hash; nothing here writes an IP address anywhere.
 import postgres from 'postgres';
 import { createControl, parseBody, CORS } from '../../../control/core.js';
 import ads from '../../../control/ads.json' with { type: 'json' };
+// The VPN servers. Bundled rather than a text var: Cloudflare caps a var at 5.1 kB, and each
+// server's OpenVPN CA and tls-crypt key take about 1.7 kB.
+import bundledNodes from '../nodes.json' with { type: 'json' };
 import { postgresAdapter, PG_TYPES } from './pg.js';
 
 const json = (code, body) => new Response(code === 204 ? null : JSON.stringify(body), {
@@ -30,7 +34,7 @@ export function makeWorker(openDb = openPostgres) {
   let control = null; // one per isolate: holds node health, rate limits and dedupe maps
   const get = (env) => control ??= createControl({
     env: (k, d) => (env[k] ?? d),
-    nodes: typeof env.NODES === 'string' ? JSON.parse(env.NODES) : (env.NODES || []),
+    nodes: typeof env.NODES === 'string' ? JSON.parse(env.NODES) : (env.NODES || bundledNodes),
     ads,
   });
 

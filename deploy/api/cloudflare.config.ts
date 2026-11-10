@@ -1,7 +1,6 @@
 // VEIL</>™ control API: Cloudflare Worker on Supabase Postgres (schema veil_vpn, project "Infinitum Corp").
 // Tests: `npm test`. Deploy: `cf deploy` here, after setting the secrets (see README "Control API on Cloudflare").
 import { bindings, defineConfig, triggers } from "cf/config";
-import nodes from "./nodes.json" with { type: "json" };
 
 export default defineConfig({
   worker: {
@@ -12,9 +11,9 @@ export default defineConfig({
     domains: ["api.infinitumveilvpn.app"],
     env: {
       NODE_ENV: bindings.text("production"),
-      // VPN servers (deploy/api/nodes.json, same shape as control/nodes.json). Each entry is what
-      // node/provision.sh prints; the OpenVPN CA and tls-crypt key are public client material.
-      NODES: bindings.text(JSON.stringify(nodes)),
+      // VPN servers: deploy/api/nodes.json, bundled into the Worker (src/worker.js). Each entry is
+      // what node/provision.sh prints; the OpenVPN CA and tls-crypt key are public client material.
+      // Not a var: Cloudflare caps a text var at 5.1 kB, and ten servers take 18 kB.
       TOKEN_SECRET: bindings.secret(),
       AGENT_SECRET: bindings.secret(),
       ADMIN_KEY: bindings.secret(),

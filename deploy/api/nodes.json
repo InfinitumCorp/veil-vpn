@@ -27,5 +27,266 @@
       "ca": "-----BEGIN CERTIFICATE-----\nMIIBhzCCAS2gAwIBAgIUUqz+r+ipbyJ4BuZ6j+yFZ/IykSQwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCB1c2UyLTEgQ0EwHhcNMjYxMTA4MTYyMzIzWhcNMzYx\nMTA1MTYyMzIzWjAZMRcwFQYDVQQDDA5WRUlMIHVzZTItMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABFwaQHxuPzDnMrTKmnOWPlMbJzqPewlQgSnnIpLaLmrZ\ntskpY8vhMN2GlnnHb34U/KX+LTMALxxJorc3esnO/wGjUzBRMB0GA1UdDgQWBBT1\n+MWtENaAJlGJGRXvhWT32g2u1TAfBgNVHSMEGDAWgBT1+MWtENaAJlGJGRXvhWT3\n2g2u1TAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIChSrbU4dDlG\nfyokx2Qeznlvi9C2Ztn3zWPd/g79RrXhAiEAjSpuPvP1M0R1SeNZvVWMXW46GX3r\nKpTV2PIjR+XLH8c=\n-----END CERTIFICATE-----",
       "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n17017f66b1f6925eeaba622fee087ff4\nd32f5cc5385907f261571972c8699781\n9bf63938bbde121ee0ad5af28781a891\ne239f179f28f723bf63855d515f245a8\n35fad1c0c8c46a62c45f45a492060806\ne652cb52b6b3d5ca86ba497a90ba7461\n1b79e3b1fd389dfb96d7768724e5ea0a\n7cb88e6cbbecabbcb16ef17f640e9f76\nafa466de5348e86715296a081414710b\n21ccfeabc6bc8aa802aa40170d90f4b7\n66937cfeebd319cbf214912fc14a8b66\n6b302199f255bc367883b72cf7183391\n81552fe436804d88074beb1b73a12349\n796b5916793df6d8d899f5646e9a3b2a\n1cc64584f08ac1c8bb805b96951dd2bf\ncf131a344f8603af5bba70a1dfbb507f\n-----END OpenVPN Static key V1-----"
     }
+  },
+  {
+    "id": "usw1-1",
+    "city": "The Dalles",
+    "country": "United States",
+    "flag": "🇺🇸",
+    "region": "na",
+    "agentUrl": "https://vpn-usw1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-usw1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-usw1.infinitumveilvpn.app:51820",
+      "publicKey": "a1pe5ArdPxHDjyLRtOUlVwtzde0KD1dBHEPqnuQ1NAA=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-usw1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-usw1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhzCCAS2gAwIBAgIUdAt6x/8cA1zRn8DYBQAwUePatQ8wCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCB1c3cxLTEgQ0EwHhcNMjYxMTEwMTU1MTQyWhcNMzYx\nMTA3MTU1MTQyWjAZMRcwFQYDVQQDDA5WRUlMIHVzdzEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABN6qanp09MT4OsT5FGh/8M17v9fC7ALd8X6/jdV7kimE\nCL9vSZC272WQ7/e4aSvfuGNPXlEDoWz3UP4Sr1808SWjUzBRMB0GA1UdDgQWBBSG\nW/yL8hofKi3Cqg32+SM8/VVSIjAfBgNVHSMEGDAWgBSGW/yL8hofKi3Cqg32+SM8\n/VVSIjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIDxdBFUHW3iv\nylDiO1jYLhALIf9WqhB6brAQD+6AZzyXAiEA6QSFpnQqjxOkV6vAxTgOZ4Eipdmi\nb+8oz++vtMVEGBQ=\n-----END CERTIFICATE-----",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n1cef191aa31273e5fd1b203aad387150\n7d5ca72f62a5ce4a6a65481c31937e23\n5986507108031f8a62f68adcdcad9565\nad580e5953e21db7cdd342d815da8c9a\n9552a3c995016ca73381de8f5428cf14\n3c82de32944d4efc0f309eb48f691eae\ne40af8f0a288509eb1af5c25a1add515\n62a10fc9c2cb59d943fb3d5812a29f5b\n8eaa9ca6ecb891345b022474aa3a72be\n99cbcfd347b4a14c99b1e6396fa8fd1e\n13764c46988ad69e92d92819554faf08\nba888fd0ecdc5580d0fcafa90a1b8e81\n2c5de4a445b96d0fb6369edcb0026d6b\n8ab1a9b6a9e0692166b94bd1aa3af98d\n4982ec3b675e225e786ca1784c6fca35\n2b677b76431f0bd71b9911b4e48dba97\n-----END OpenVPN Static key V1-----"
+    }
+  },
+  {
+    "id": "ane1-1",
+    "city": "Tokyo",
+    "country": "Japan",
+    "flag": "🇯🇵",
+    "region": "apac",
+    "agentUrl": "https://vpn-ane1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ane1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ane1.infinitumveilvpn.app:51820",
+      "publicKey": "PGTsybsOJ6l0EGLa4wswqSnyOyyhTNwWwDzS8gDPBwc=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ane1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ane1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBiDCCAS2gAwIBAgIUIqQV/md5nGkyaBcYFG74NJ/9beUwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBhbmUxLTEgQ0EwHhcNMjYxMTEwMTgzMDIyWhcNMzYx\nMTA3MTgzMDIyWjAZMRcwFQYDVQQDDA5WRUlMIGFuZTEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABL7C+g/YKR9nIhNOwv0VMrlleNgF0TcZmKmoxXhX2YdL\ndrsPJ11y49JT16XPJCAHw2+uflazJwfKfw5oYKh2OJ2jUzBRMB0GA1UdDgQWBBQz\n9wfFArprOQynV4vkdEqXaZa5/DAfBgNVHSMEGDAWgBQz9wfFArprOQynV4vkdEqX\naZa5/DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQCddBSugpUl\nzAO4Uz7OLy18jqJiFGfouJzEurS4S9i4wAIhAPIxrgaM+M7+ildtjSNoyfq063fb\nfq5Al7ioAAws0hHh\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n34f6c08c8d2a8fb263075a8aaf5871ec\n86e989cb26caa3142f2163aa7568e61b\n2a4f5e7755ab40429a3d25d3ab2619f1\nc2203d68eba6613efd5517b387c34a6c\nfffefc5d4ce3678f2c5b03f153f8a9ee\n8b999118ab46979faa07509c9e4bd229\n938d9e892ed35852c585fac58c1df538\n0d82cc5a8bf6584873a409299dbc3af9\n55f55bf787e94517b9a4b05f29df043c\n5cd805410cd8b92424b35b793cd805f8\nb091e1790c20ddbe79ebd65b55096656\need4828eaed31795cbc6d599aefe826a\nda06044fd3526ff69579874994bb98b5\n142e4ae9c739eee43d09f8bda33dcbcb\n24ecf089b11a48170511b4c02a41551a\n007d16e38538a06e2d9f5831ea466591\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "ase1-1",
+    "city": "Singapore",
+    "country": "Singapore",
+    "flag": "🇸🇬",
+    "region": "apac",
+    "agentUrl": "https://vpn-ase1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ase1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ase1.infinitumveilvpn.app:51820",
+      "publicKey": "gR70SsThpW+L5Yj0DVl6xMlputM+PHAnQ88WnSKCmno=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ase1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ase1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhjCCAS2gAwIBAgIUBUc86PHQlM3MFD8TITOMBkbWPJowCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBhc2UxLTEgQ0EwHhcNMjYxMTEwMTgzMDM3WhcNMzYx\nMTA3MTgzMDM3WjAZMRcwFQYDVQQDDA5WRUlMIGFzZTEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABAYt4X9sLRSNwgvu1C6fd6FK9l5ZTDnQtzM2EJCHirjf\n+erZNkxpZumfKDac+Fazfusp5PmUG3QcRuP7av2vvASjUzBRMB0GA1UdDgQWBBRH\n2eeP55t1Fkr0Pss3U42jPyo3FjAfBgNVHSMEGDAWgBRH2eeP55t1Fkr0Pss3U42j\nPyo3FjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIGUAcyIrz6MY\nqw6mFssMO2JEj2uEnYFqitHHuxxXCzydAiBmLHV2anjuO4J00lz58TjbEFazBzoi\n7ZO9ToXpuGd1ng==\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n01426a616970572b7d72995cb5428af6\n007527b24230f12491686f60346587d0\n06e6133f110fad5f2ebd19a486fe98e4\n46265b38caa22064b6a3e1c11144e309\n7a0575bc3dde2275abff0765f9ad73bd\n01342d8630ebc573b0765bfe635213f8\n32736e5f1c4a70ce93514cd7e8106fef\n2eb4578f24859da1568624340a6d031a\nadc259627615ffd903adb0f7188a1c98\na507314e36f6d933a0028c6bd1434e67\n392b82c90cb5595bb7c25856cab94f86\ne8d81998694aceb6466e6cb04c684c44\n8b370bfca0ac689fa479e4afb45cc3e7\n08f3af6d96977f8f0f99a84cd89576d0\n84a47900791c087ac7a3963ca495656b\n8db1340b1bc1ed4aad39e7779512dc53\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "ause1-1",
+    "city": "Sydney",
+    "country": "Australia",
+    "flag": "🇦🇺",
+    "region": "apac",
+    "agentUrl": "https://vpn-ause1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ause1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ause1.infinitumveilvpn.app:51820",
+      "publicKey": "20o1t6SfReL3f+eJ0CaUPpO208Rew1t8IQDRlpacxWI=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ause1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ause1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBijCCAS+gAwIBAgIUK16+/pnybyy8MTonhy5mTkWcpE4wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPVkVJTCBhdXNlMS0xIENBMB4XDTI2MTExMDE4MzAzMFoXDTM2\nMTEwNzE4MzAzMFowGjEYMBYGA1UEAwwPVkVJTCBhdXNlMS0xIENBMFkwEwYHKoZI\nzj0CAQYIKoZIzj0DAQcDQgAEAN7WlaTKBfDOPfprpsCexOniX86aQRbh2B2bebns\npE4EOdHWUhkibRYY2I27FJD29cBfIJDH3n8tTvBkqpsm4KNTMFEwHQYDVR0OBBYE\nFMgh9/JGWfsUyhJT1p2v397RZo5yMB8GA1UdIwQYMBaAFMgh9/JGWfsUyhJT1p2v\n397RZo5yMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDSQAwRgIhAPYZnUMD\nDzEM/+fxTJIauDIEcXQyqCsTNtDYPm0e48REAiEAyYQBzwWNhT1fqzEvm/0dw1Gc\nwGI/uHaSjW9Sd5UuqZ0=\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n618d37ad8666d232981fe2b46f7669aa\nb5e20ef05064c8e102a9fc996476cea3\n7b56fe5e18bec47142d9cd939a89b154\nc3cc66a9bfaf92ea192bce37012071ae\nc11fa73c8bdf828c91e50c24c30134af\n585f47b3f9d10ce5f40606624790c7dd\ne0a4872fced29fb2ecc6d691397ce4d7\n55d4e58ef75d5b441dcb85bf656a973b\n09a67253a892f7009659f75915b849ff\n8ab5bd3c790cb4461dd08b77b07c5f6c\n4c1ea67a7035a2b2008f1f62d86a1b53\nd65695a446e851443093b3c5a574521a\n40835c375e1741ea9c8180ee1a7b5234\ncf0ec521fd307b5600e7070fcb1982a3\n154e85c0768dd939b38442d5ca66a315\n417d6f0862a6be83d80bd352358cf4e7\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "euw2-1",
+    "city": "London",
+    "country": "United Kingdom",
+    "flag": "🇬🇧",
+    "region": "eu",
+    "agentUrl": "https://vpn-euw2.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-euw2.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-euw2.infinitumveilvpn.app:51820",
+      "publicKey": "5yBAz49Y5CWvJylV5EnVLIG8Dr1UFHl7MuylA2VbrV4=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-euw2.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-euw2.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhzCCAS2gAwIBAgIUUnEuWDxjX4OsX66pTU5yVyVR7CIwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBldXcyLTEgQ0EwHhcNMjYxMTEwMTgzMDIyWhcNMzYx\nMTA3MTgzMDIyWjAZMRcwFQYDVQQDDA5WRUlMIGV1dzItMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABOq/3UlsR3GozMbZYa08WXbLNwswX+1ce8nxYSBkaTNL\ne9eCs9+S3h7MhSrVsFj1fn8QE6NwX40olCdcWf/sS3yjUzBRMB0GA1UdDgQWBBRc\nxg8YZV1ikQf/VHuxA7JIbKI1jjAfBgNVHSMEGDAWgBRcxg8YZV1ikQf/VHuxA7JI\nbKI1jjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIHO56o6OPL91\nifS1bltpqvKrvMYH8Ku0DsKwROQUXtM7AiEArhOm8c2/JwHS8z9fYeXgODhlvAIG\nerdPc/vvtGSub8I=\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n3ac16e1da1ea0245471a9ed00d6fee19\nd41892fa1917d3d90cd47adfacdddeec\n149b2941d955cb05f880a1f5bb346c5d\n702e44a01c2998e7c5b86345c702e2a1\n405f89c210c89290ad4bbfe37afcf556\n2ee6cb5ec68360d043a1732814b0535e\n54133b6930dcc0f35230fac6b25d1078\ncdff1dd8cd22520ded351af25a689c92\n5ed0bb7f68d9d4e1f2eb3f35a13fa2a4\n5ee32788cc7e222e465362877dc1c161\n109775af835877ce98f695ced6565906\ncdcbf9c3411a2188d0d728e69646373b\n60dac631d8e10347519f4af29bd23737\nad4ff58b6ac550664b533bc1b94f4892\n3c788aa5c541cd4041265a786feb129c\nab6d2fda159600e3c3c0849c90b2aeb9\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "euw3-1",
+    "city": "Frankfurt",
+    "country": "Germany",
+    "flag": "🇩🇪",
+    "region": "eu",
+    "agentUrl": "https://vpn-euw3.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-euw3.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-euw3.infinitumveilvpn.app:51820",
+      "publicKey": "F/lVog3T2cNk5jJwN8BnNpJBx+Zv1YO7M321X8BZZS4=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-euw3.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-euw3.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhzCCAS2gAwIBAgIUAPFhJ3tkIbt7MW92w2JNWaRjPPcwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBldXczLTEgQ0EwHhcNMjYxMTEwMTgzMDMxWhcNMzYx\nMTA3MTgzMDMxWjAZMRcwFQYDVQQDDA5WRUlMIGV1dzMtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABAOrBCGlNg8OYKOyJpTL/5e1nVkoCB8lp5011S8Hi9CU\nwyGtHD2sCStx9evtyVlnYysIoxheN53jV2CfhTKvmc+jUzBRMB0GA1UdDgQWBBTh\n9xO8GlJFQpO7IEsxOWzMl2jNiTAfBgNVHSMEGDAWgBTh9xO8GlJFQpO7IEsxOWzM\nl2jNiTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIQDZKEvSxik/\n8vH76Ub+xp96wTu30hXTictJNQwL4QVoPAIgEcredw2jkHUREmY3libIPyHAz03H\nJAB5Ss02dUOzL/E=\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\na97d3587830e4c2a8b129ad8967dcd8a\na03d0ae5b731a5886d34d6b5ad841464\n7a2842b006bd7aa6df1a67a85f73d412\n34845d6c86f692f331e9244191f36e73\n71f093a9452b268401a3fe4dc629ad55\nd45789344d97ecab7d073396cd980d8a\n17637214c373f6eba146deaa446611ad\n768ecb537f143c982c83e5b706d05b87\n3fa048cc5631146f3995c4361900e895\ne99fe07ad88392cb5121d1a39debe944\nce2c7af3a370103fca116602be75537e\n0ffbed392b08cdad36a8f3172b7ba857\n380fcaada0a9028715babb41c5cf60e6\n17cbce02cb14b6a3852b90ee228a2fcd\nabd7397d8085ce13ef714765bd735c23\n42a73f460b530ca0e1c812aafc806c03\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "euw4-1",
+    "city": "Eemshaven",
+    "country": "Netherlands",
+    "flag": "🇳🇱",
+    "region": "eu",
+    "agentUrl": "https://vpn-euw4.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-euw4.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-euw4.infinitumveilvpn.app:51820",
+      "publicKey": "wciW05BRfOSokpK8c0qaBkMysqfL/sj9Mii6kbCpjzw=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-euw4.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-euw4.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhTCCAS2gAwIBAgIUelS8em8MoA+2KOixYR/NzVpBtdIwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBldXc0LTEgQ0EwHhcNMjYxMTEwMTgzMDM1WhcNMzYx\nMTA3MTgzMDM1WjAZMRcwFQYDVQQDDA5WRUlMIGV1dzQtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABEWYwJcqdq/0ogJRZIjVA8jS7P0XsdMZb2NgPsqOcgac\n2qYwOvvXKYwtpMJme0LLhqxkrASJqkbUhMxL7vSzjqWjUzBRMB0GA1UdDgQWBBRd\nbTVfF7C6mIf+JvlxSlv7yR4azjAfBgNVHSMEGDAWgBRdbTVfF7C6mIf+JvlxSlv7\nyR4azjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0YAMEMCH0uSgbt18TAP\nNKUWV4K59N1gDNuwfQu42Luo0PcHCzsCIBPmROsbWCcJt5Jw3VhXaz/4bjK4DkWr\nxRXiBaUM09+j\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n8cff546a4f9eb9e714e15ef0cf57b60e\n32a6b68ff13359f2b6663046085c9cfe\n5c32144e7d22ce333a38558189154edc\n8fc53b26b6105be7118a0dda1f98b8e9\n61163c8e2050752a05e3eb59f71561ec\n44aab48c15fef52eb96bb7cd9183774f\n8c4e1df93701ce29239315f368b19982\nbd4a61ebd6e4d43386bd93b4dd47d537\n635398b0a8bf99471a365730ace310c7\n440485349da16b575a9879abeed0c346\n6a2d8e0db453439322c0012f3ae4cfbb\n66977155a812033ca68c037e43c4f3ab\n4a38116ec32fd5f6a2f9eb56cf049b28\n4dc61cb727a9b73b43f37b3c6fe7d049\n4339040a6dbd496b85e1fb2210525f87\n90d095f1092ecd21e890bedac91097c8\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "eun1-1",
+    "city": "Hamina",
+    "country": "Finland",
+    "flag": "🇫🇮",
+    "region": "eu",
+    "agentUrl": "https://vpn-eun1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-eun1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-eun1.infinitumveilvpn.app:51820",
+      "publicKey": "lwiOpSMO17VA9sFAHemwCRwCY0cXoczodp0ohKKh8ik=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-eun1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-eun1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBiDCCAS2gAwIBAgIURYXZWhWuxpddbYVB0YudrYPsdyAwCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBldW4xLTEgQ0EwHhcNMjYxMTEwMTgzMTI4WhcNMzYx\nMTA3MTgzMTI4WjAZMRcwFQYDVQQDDA5WRUlMIGV1bjEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABObnTxaeXWI8gq8lMQ9jnKAKnln9rcDT+gufdq07V4qg\nhtCQOvvzwFaV7wn647SErivxjICVRdQbjLKn/20PwjSjUzBRMB0GA1UdDgQWBBQq\nNYk2GrHjVAiYik21ltTILx6n9TAfBgNVHSMEGDAWgBQqNYk2GrHjVAiYik21ltTI\nLx6n9TAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQCFy8HqJjiM\ntfIOcsHr4qZfOCbu3JAk+Jf5RVBTSXN+GwIhAP5TNVAkxr2OqfAGG9Rvk0TnhfG7\n4XXSgafTh+lHKliY\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n32314c379fddfdf300921b09d1b88d26\n293ea886f0b40b42f7598a0ad2c0875a\na56f5ef13a76e3f86450065262536db9\n7a2ea8acb2c090856a98513813cb9076\n4b356f8ae6138fd0a4b5a076694405bf\n435d7bdc49364a56314cdbc7df8ce1af\n01e80cb2723d4c42bbfdbb186291f800\ne1958e17b9e09894c5873dd6275b166e\nf6eec3e5b97570ffa24f6274e2d0b1b0\n09755f4043c65e210fc9b0ee4f5f3eb4\n6f941d06de5292edafc1e444ee4f846d\ndfd36900fd9da91c147deb5bbe9077ca\n797a9385f3dc347d1e94339a9a9e5859\n6593ad6c38e8b0b68a63fc42a7d07a6d\n947eb0c83afd6ad54492e43f01194aa8\n86a482a9215c8e7bfebee07b10972bab\n-----END OpenVPN Static key V1-----\n"
+    }
+  },
+  {
+    "id": "sae1-1",
+    "city": "São Paulo",
+    "country": "Brazil",
+    "flag": "🇧🇷",
+    "region": "sa",
+    "agentUrl": "https://vpn-sae1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-sae1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-sae1.infinitumveilvpn.app:51820",
+      "publicKey": "SQDXHGpljIbAOLeYvtIoIfRwQ7bypA2KwRXl7WlBLnQ=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-sae1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-sae1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBiDCCAS2gAwIBAgIUBub4x93+ZbCuYUN5URm6gVes0rswCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBzYWUxLTEgQ0EwHhcNMjYxMTEwMTgzMjA5WhcNMzYx\nMTA3MTgzMjA5WjAZMRcwFQYDVQQDDA5WRUlMIHNhZTEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABPWnCkdE+umGxSZT7brlnP4HuhAzBd1yfM2xNFBk0G5x\n4+lqwPBzIdsnIeLPdcvWKJANUVn9ebsoemsmnEkxBKyjUzBRMB0GA1UdDgQWBBTT\neTeIWWMy5Ll/jvKNSBSOixS5JTAfBgNVHSMEGDAWgBTTeTeIWWMy5Ll/jvKNSBSO\nixS5JTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQDirxSNQs7+\nHwX+txsNFedVgmhGj9r+1oDvnqDjvXUBWgIhAJrA/go+4W1hDJ0aW5llYm6kStq8\nrM3U3+y71lp6gIX5\n-----END CERTIFICATE-----\n",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\ne8520acef51615f29f55b99ca4e81006\n7158f033b4b9ac10bd6c53f32036ed3d\n7dd50a71853718035ad4ecd3efb9fec9\n8eb03c449069ecdc0a86a91eb79ff1cd\n77296a5b3156f65da36f58272266e76b\nd437b727eb518a60fbb0809c982442f5\n71755d70c9d09fa24af465fb09f68b22\n3478ee1418e8f1b402f0bf745ac785ec\n45eef299f87c510a6b969d766b7d6329\n8e1584c0d4ba1d6e1f005e5495a73ad5\nf23026e6b701a9c404265725d2132fc8\n36d241486fa496bf5bbd20268569a0af\n548a3a09269162be4c58c7e814a0a9e5\nd6d2987553b34aedb4e627317041b02f\n1a94c877a846d5d9c644add9a0b03293\n2dc1c25e4d724069814cedbdef272338\n-----END OpenVPN Static key V1-----\n"
+    }
   }
 ]
