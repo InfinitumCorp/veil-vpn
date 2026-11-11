@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -79,6 +80,7 @@ class MainActivity : ComponentActivity() {
             },
             askVpnPermission = ::askVpnPermission,
             openVpnSettings = { runOnUiThread { startActivity(Intent(Settings.ACTION_VPN_SETTINGS)) } },
+            startSignIn = { create -> runOnUiThread { CidSignIn.start(this, create) } },
         ), "VeilAndroid")
 
         // Android 15+ draws edge to edge: keep the interface clear of the status and navigation bars.
@@ -99,10 +101,27 @@ class MainActivity : ComponentActivity() {
             override fun handleOnBackPressed() { if (web.canGoBack()) web.goBack() else finish() }
         })
 
+        handleSignIn(intent)
         NetworkGuard.register(applicationContext)
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+    }
+
+    // Cumulus ID sends the person back here (App Link or the return page's link) with a one-time code.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSignIn(intent)
+    }
+
+    private fun handleSignIn(intent: Intent?) {
+        val uri = intent?.data
+        if (!CidSignIn.isReturn(uri)) return
+        intent?.data = null
+        lifecycleScope.launch(Dispatchers.IO) {
+            CidSignIn.finish(applicationContext, uri!!)
+            withContext(Dispatchers.Main) { web.evaluateJavascript("window.__veilSignedIn && window.__veilSignedIn()", null) }
         }
     }
 

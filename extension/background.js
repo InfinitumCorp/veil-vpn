@@ -1,7 +1,7 @@
 // VEIL</>™ extension background worker (Chrome / Edge / Firefox, Manifest V3).
 // Routes this browser's traffic through a VEIL node's HTTPS proxy, answers its auth
 // challenge with a short-lived token, sends reward heartbeats and enforces the kill switch.
-import { CONTROL_URL } from './config.js';
+import { CONTROL_URL, CID_ISSUER, CID_RETURN } from './config.js';
 
 const S = { local: chrome.storage.local, session: chrome.storage.session };
 const get = async (area, k) => (await S[area].get(k))[k];
@@ -18,27 +18,85 @@ async function device() {
   return d;
 }
 const idHeaders = async () => ({ 'x-veil-device': await device(), 'x-veil-platform': typeof chrome.proxy.onRequest !== 'undefined' ? 'firefox' : 'chrome' });
+// The session comes from signing in with Cumulus ID (below); there is no anonymous one.
 async function session() {
-  let t = await get('local', 'session');
-  if (!t) {
-    const r = await fetch(`${CONTROL_URL}/v1/session`, { method: 'POST', headers: await idHeaders() });
-    if (!r.ok) throw new Error(`session_${r.status}`);
-    t = (await r.json()).token;
-    await set('local', 'session', t);
-  }
+  const t = await get('local', 'session');
+  if (!t) throw new Error('sign_in_required');
   return t;
 }
-async function api(path, { method = 'GET', body, retry = true } = {}) {
-  const token = await session();
+async function api(path, { method = 'GET', body } = {}) {
+  const token = path === '/v1/servers' || path.startsWith('/v1/ads?') || path === '/v1/pool' ? await get('local', 'session') : await session();
   const r = await fetch(`${CONTROL_URL}${path}`, {
-    method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(await idHeaders()) },
+    method, headers: { ...(token && { authorization: `Bearer ${token}` }), 'content-type': 'application/json', ...(await idHeaders()) },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (r.status === 401 && retry) { await S.local.remove('session'); return api(path, { method, body, retry: false }); }
+  // The server no longer accepts this session: sign in again.
+  if (r.status === 401) { await forgetSignIn(); throw new Error('sign_in_required'); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `http_${r.status}`);
   return j;
 }
+
+// ---------- Cumulus ID sign-in ----------
+// OAuth 2.0 code + PKCE against Cumulus ID (CID_ISSUER: id.cumuluscloud.app or a mirror). The popup
+// cannot stay open while the person signs in, so this worker opens a tab, watches for the return page
+// (CID_RETURN, on the VEIL VPN site) and trades the one-time code here. The CID access token is sent
+// once to the control server, which ties this device's session to the person.
+const CID_CLIENT = 'veil-vpn';
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const randomB64 = (n) => b64url(crypto.getRandomValues(new Uint8Array(n)));
+async function signIn({ create = false } = {}) {
+  const verifier = randomB64(48);
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  const state = randomB64(16);
+  const u = new URL('/api/id/authorize', CID_ISSUER);
+  u.search = new URLSearchParams({ client_id: CID_CLIENT, redirect_uri: CID_RETURN, code_challenge: challenge, code_challenge_method: 'S256', state, ...(create && { prompt: 'create' }) }).toString();
+  await set('local', 'cidPending', { verifier, state, at: Date.now() });
+  await S.local.remove('cidError');
+  const tab = await chrome.tabs.create({ url: u.toString() });
+  await set('local', 'cidTab', tab.id);
+  return { opened: true };
+}
+async function finishSignIn(url, tabId) {
+  const pending = await get('local', 'cidPending');
+  const q = new URL(url).searchParams;
+  if (!pending || Date.now() - pending.at > 30 * 60_000) return;
+  await S.local.remove('cidPending');
+  try {
+    if (q.get('state') !== pending.state) throw new Error('cid_mismatch');
+    let tok;
+    try {
+      const r = await fetch(new URL('/api/id/token', CID_ISSUER), {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: q.get('code'), code_verifier: pending.verifier, client_id: CID_CLIENT, redirect_uri: CID_RETURN }),
+      });
+      tok = await r.json().catch(() => ({}));
+      if (!r.ok || !tok.access_token) throw new Error('cid_failed');
+    } catch (e) { throw new Error(e.message === 'cid_failed' ? e.message : 'cid_unreachable'); }
+    const r = await fetch(`${CONTROL_URL}/v1/session`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(await idHeaders()) }, body: JSON.stringify({ cid_token: tok.access_token }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.token) throw new Error(j.error || 'cid_failed');
+    await S.local.set({ session: j.token, cid: { profile: { username: tok.profile?.username || null, email: tok.profile?.email || null }, token: tok.access_token } });
+  } catch (e) {
+    await set('local', 'cidError', e.message);
+  }
+  if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
+}
+async function forgetSignIn() { await S.local.remove(['session', 'cid']); }
+async function signOut() {
+  const c = await get('session', 'conn');
+  if (c && c.state !== 'off') await disconnect();
+  const cid = await get('local', 'cid');
+  await forgetSignIn();
+  // Ends the Cumulus ID session this extension started (best effort; the device is signed out either way).
+  if (cid?.token) fetch(new URL('/api/id/signout', CID_ISSUER), { method: 'POST', headers: { authorization: `Bearer ${cid.token}` } }).catch(() => {});
+  return { signedIn: false };
+}
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.url && info.url.startsWith(CID_RETURN.split('?')[0]) && new URL(info.url).searchParams.has('code')) finishSignIn(info.url, tabId);
+});
 
 // ---------- proxy control ----------
 // Chrome / Edge: one browser-wide proxy setting. Firefox: proxy.onRequest decides per request
@@ -175,12 +233,20 @@ chrome.runtime.onStartup.addListener(async () => {
   await clearProxy();
   const s = await settings();
   const last = await get('local', 'lastServer');
-  if (s.auto && last) connect(last).catch(() => {});
+  if (s.auto && last && await get('local', 'session')) connect(last).catch(() => {});
 });
 chrome.runtime.onInstalled.addListener(() => { clearProxy(); badge(false); });
 
 // ---------- messages from the popup ----------
 export const handlers = {   // exported for tests; the popup reaches these by message
+  account: async () => {
+    const cid = await get('local', 'cid'); const session = await get('local', 'session');
+    const error = await get('local', 'cidError');
+    if (error) await S.local.remove('cidError');
+    return { signedIn: !!(cid && session), profile: cid?.profile || null, ...(error && { error }) };
+  },
+  signIn: (m) => signIn({ create: m.create === true }),
+  signOut: () => signOut(),
   state: async () => (await get('session', 'conn')) || { state: 'off', server: await get('local', 'lastServer'), since: 0 },
   servers: async () => (await api('/v1/servers')).servers,
   connect: (m) => connect(String(m.server)),

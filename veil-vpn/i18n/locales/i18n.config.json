@@ -12,6 +12,7 @@
   "Tor",
   "FIRM",
   "$FIRM",
-  "Cumulus://ID"
+  "Cumulus://ID",
+  "Cumulus ID"
  ]
 }

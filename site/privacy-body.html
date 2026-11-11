@@ -1,6 +1,6 @@
 <!-- VEIL</> VPN privacy policy text. scripts/product-site.mjs puts it into site/privacy.html. -->
 <!-- updated: Last updated November 9, 2026 -->
-<section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You do not create an account.</p></section>
+<section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You sign in with your Cumulus ID, Infinitum's one sign-in; VEIL keeps only a keyed hash of it, never your name or email.</p></section>
 <section class="legal-part"><h2><span>02</span>What we never collect</h2><ul>
 <li>Websites, domains, URLs or DNS queries.</li>
 <li>Traffic contents or connection logs (when you connected, from where, to where).</li>
@@ -8,7 +8,7 @@
 <li>Your name, email, phone number, contacts, location or files.</li>
 </ul><p>Our servers keep their system logs in memory only, so they are gone after a restart.</p></section>
 <section class="legal-part"><h2><span>03</span>What we store, and why</h2><ul>
-<li><strong>An anonymous session.</strong> A random ID and key, created by the app, so the app can connect and count your rewards.</li>
+<li><strong>A session tied to your Cumulus ID.</strong> A random ID and key for each device you sign in on, so the app can connect and count your rewards. With it we store a keyed hash of your Cumulus ID (not the ID, name or email), so your devices share one reward balance and one wallet. Cumulus ID itself is run by Infinitum under the <a href="https://infinitumcorporation.ai/privacy-policy">Infinitum Corporation privacy policy</a>.</li>
 <li><strong>A hashed device ID.</strong> The app sends a device identifier; we store only a keyed hash of it. It lets us allow one earning account per device (fraud prevention). We also note the platform (Android, Chrome or Firefox), and we flag a session for review if it comes from an emulator, a rooted phone, or more than one device.</li>
 <li><strong>A network tag, for 3 days.</strong> To stop many accounts earning from one connection, we store a keyed hash of the first part of your network address (the /24 or /48 block, not your address), with a key that changes every day. It is deleted after 3 days.</li>
 <li><strong>Reward counts.</strong> The number of minutes you were connected each day, and how many ads were viewed or clicked in your session (counts only; no ad or site details).</li>

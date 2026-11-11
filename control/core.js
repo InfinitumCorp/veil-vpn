@@ -1,7 +1,12 @@
 // VEIL</>™ control API, independent of the runtime and the database.
-// Issues anonymous sessions, hands out short-lived VPN credentials, counts rewarded minutes,
+// Issues sessions tied to a Cumulus ID, hands out short-lived VPN credentials, counts rewarded minutes,
 // records ad events and revenue, and closes daily community-pool epochs on an internal ledger.
 // It never receives or stores the sites users visit, DNS queries, or client IP addresses.
+//
+// Sign-in: people sign in with Cumulus ID (id.cumuluscloud.app, or the mirror in CID_ISSUER). The app
+// sends the CID access token once, to POST /v1/session; the server checks it at the issuer's
+// /api/id/userinfo and stores only a keyed hash of the CID (sessions.account). Every device the
+// person signs in on gets its own session token, and all of them share one earning account.
 //
 // Runs in two places with the same rules:
 //   control/server.js            Node.js + SQLite (local development, tests, self-hosting)
@@ -41,6 +46,10 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const MANUAL_TTL = Number(env('MANUAL_TTL_MS', 7 * 86_400_000));
   const MODES = ['proxy', 'wireguard', 'ikev2', 'openvpn', ...PROXY_MODES];
   const DEV = env('NODE_ENV', 'development') !== 'production';
+  // Cumulus ID. CID_ISSUER may point at a mirror (e.g. one reachable from Russia without a VPN).
+  const CID_ISSUER = String(env('CID_ISSUER', 'https://id.cumuluscloud.app')).replace(/\/+$/, '');
+  // Production refuses sessions without a Cumulus ID; local development may run without one.
+  const CID_REQUIRED = env('CID_REQUIRED', DEV ? '0' : '1') === '1';
   for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY })) {
     if (v.length < 24) throw new Error(`${k} must be set to at least 24 characters`);
   }
@@ -104,11 +113,30 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   async function auth(db, req) {
     const m = /^Bearer ([A-Za-z0-9_-]{16,64})\.([A-Za-z0-9_-]{32,64})$/.exec(req.header('authorization') || '');
     if (!m) fail(401, 'unauthorized');
-    const s = await db.get('SELECT id, key_hash, wallet, device_hash FROM sessions WHERE id = ?', m[1]);
+    const s = await db.get('SELECT id, key_hash, wallet, device_hash, account FROM sessions WHERE id = ?', m[1]);
     if (!s || s.key_hash !== hash(m[2])) fail(401, 'unauthorized');
+    if (CID_REQUIRED && !s.account) fail(401, 'sign_in_required');
     await fraud.observe(db, req, s);
     return s;
   }
+  // The person behind a Cumulus ID token, asked of the issuer itself. Returns a keyed hash of the CID:
+  // the raw CID, name and email are not stored here.
+  async function cidAccount(token) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_.-]{20,8000}$/.test(token)) fail(401, 'sign_in_required');
+    let r;
+    try {
+      r = await fetchFn(`${CID_ISSUER}/api/id/userinfo`, { headers: { authorization: `Bearer ${token}`, accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+    } catch { fail(503, 'cid_unreachable'); }
+    if (r.status === 401 || r.status === 403) fail(401, 'sign_in_required');
+    if (!r.ok) fail(503, 'cid_unreachable');
+    const p = await r.json().catch(() => ({}));
+    const cid = typeof p.cid === 'string' ? p.cid : typeof p.sub === 'string' ? p.sub : '';
+    if (!cid || cid.length > 200) fail(401, 'sign_in_required');
+    return createHmac('sha256', TOKEN_SECRET).update(`cid|${cid}`).digest('base64url').slice(0, 32);
+  }
+  // SQL that selects every session of this person (all their signed-in devices), or just this one.
+  const mine = (s) => (s.account ? ['sid IN (SELECT id FROM sessions WHERE account = ?)', s.account] : ['sid = ?', s.id]);
+
   const admin = (req) => { if ((req.header('authorization') || '') !== `Bearer ${ADMIN_KEY}`) fail(401, 'unauthorized'); };
 
   // ---------- domain ----------
@@ -140,9 +168,12 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   };
 
   async function me(db, s) {
-    const t = await today(db, s.id);
-    const acc = num((await db.get(`SELECT COALESCE(SUM(base_veil + pool_veil), 0) AS v FROM payouts WHERE sid = ? AND status = 'accrued'`, s.id)).v);
-    const life = num((await db.get('SELECT COALESCE(SUM(base_veil + pool_veil), 0) AS v FROM payouts WHERE sid = ?', s.id)).v);
+    const [scope, key] = mine(s);
+    // Today's minutes and the payouts of every device signed in with this Cumulus ID.
+    const minutes = num((await db.get(`SELECT COALESCE(SUM(minutes), 0) AS m FROM usage WHERE ${scope} AND day = ?`, key, day())).m);
+    const t = { minutes: Math.min(minutes, MAX_MIN) };
+    const acc = num((await db.get(`SELECT COALESCE(SUM(base_veil + pool_veil), 0) AS v FROM payouts WHERE ${scope} AND status = 'accrued'`, key)).v);
+    const life = num((await db.get(`SELECT COALESCE(SUM(base_veil + pool_veil), 0) AS v FROM payouts WHERE ${scope}`, key)).v);
     const base = t.minutes * RATE_PER_MIN;
     const c = await db.get('SELECT node, mode, exp FROM conns WHERE sid = ?', s.id);
     return {
@@ -150,6 +181,7 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       pending: base + acc, claimable: acc, lifetime: life + base, wallet: s.wallet ?? null,
       connection: c && num(c.exp) > Date.now() ? { node: c.node, mode: c.mode, exp: num(c.exp) } : null,
       hold: hold.get(s.id) || null,
+      signedIn: !!s.account,
     };
   }
 
@@ -185,13 +217,24 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const routes = {
     'GET /healthz': () => ({ ok: true }),
 
-    'POST /v1/session': async (db, req) => {
+    // Sign-in: { cid_token } is a Cumulus ID access token. Without one, only local development
+    // (CID_REQUIRED=0) gets a session.
+    'POST /v1/session': async (db, req, body) => {
       limit(`s:${req.ip}`, 10, 3_600_000);
+      const cidToken = body.cid_token ?? null;
+      if (cidToken == null && CID_REQUIRED) fail(401, 'sign_in_required');
+      const account = cidToken == null ? null : await cidAccount(cidToken);
       const id = randomBytes(12).toString('base64url'); const key = randomBytes(24).toString('base64url');
-      await db.run('INSERT INTO sessions (id, key_hash, created) VALUES (?, ?, ?)', id, hash(key), day());
+      await db.run('INSERT INTO sessions (id, key_hash, created, account) VALUES (?, ?, ?, ?)', id, hash(key), day(), account);
+      // A wallet already linked on another of this person's devices applies here too.
+      const w = account && await db.get('SELECT wallet FROM sessions WHERE account = ? AND wallet IS NOT NULL LIMIT 1', account);
+      if (w) await db.run('UPDATE sessions SET wallet = ? WHERE id = ?', w.wallet, id);
       await fraud.observe(db, req, { id, device_hash: null });
-      return { token: `${id}.${key}` };
+      return { token: `${id}.${key}`, signedIn: !!account };
     },
+
+    // Where clients send people to sign in (the issuer, or its mirror).
+    'GET /v1/cid': () => ({ issuer: CID_ISSUER, client: 'veil-vpn', required: CID_REQUIRED }),
 
     'GET /v1/servers': async () => { await freshHealth(); return { servers: NODES.map(publicNode) }; },
 
@@ -298,7 +341,9 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       const w = body.address == null ? null : String(body.address);
       if (w !== null && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w)) fail(400, 'bad_solana_address');
       const wb = await fraud.walletBlock(db, s, w); if (wb) fail(409, wb);
-      await db.run('UPDATE sessions SET wallet = ? WHERE id = ?', w, s.id);
+      // One wallet per person: it applies to every device signed in with the same Cumulus ID.
+      if (s.account) await db.run('UPDATE sessions SET wallet = ? WHERE account = ?', w, s.account);
+      else await db.run('UPDATE sessions SET wallet = ? WHERE id = ?', w, s.id);
       return me(db, { ...s, wallet: w });
     },
 
@@ -306,7 +351,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     'POST /v1/claim': async (db, req) => {
       const s = await auth(db, req);
       if (!s.wallet) fail(400, 'no_wallet');
-      const r = await db.run(`UPDATE payouts SET status = 'queued', wallet = ? WHERE sid = ? AND status = 'accrued'`, s.wallet, s.id);
+      const [scope, key] = mine(s);
+      const r = await db.run(`UPDATE payouts SET status = 'queued', wallet = ? WHERE ${scope} AND status = 'accrued'`, s.wallet, key);
       return { queued: r.changes, ...(await me(db, s)) };
     },
 
