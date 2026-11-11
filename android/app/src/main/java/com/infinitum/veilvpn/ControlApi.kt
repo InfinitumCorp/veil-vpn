@@ -17,8 +17,9 @@ class ControlApi(context: Context) {
         val c = URL(base + path).openConnection() as HttpURLConnection
         try {
             c.requestMethod = method
-            c.connectTimeout = 8_000
-            c.readTimeout = 10_000
+            // Generous limits: on filtered mobile networks (e.g. Russia) the TLS handshake alone can take 10 s or more.
+            c.connectTimeout = 15_000
+            c.readTimeout = 20_000
             c.useCaches = false
             c.setRequestProperty("content-type", "application/json")
             c.setRequestProperty("x-veil-device", DeviceCheck.id(app))

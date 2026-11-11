@@ -10,9 +10,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 .topbar { display: flex; align-items: center; gap: 0 12px; min-height: 52px; padding: env(safe-area-inset-top, 0px) 14px 0; border-bottom: 1px solid var(--rule); }
-.brand { display: inline-flex; align-items: center; height: 52px; font-size: 19px; letter-spacing: -0.04em; text-decoration: none; white-space: nowrap; }
-.brand sup { font-size: .5em; letter-spacing: 0; margin-left: 1px; align-self: flex-start; margin-top: 15px; }
-.brand-vpn { margin-left: 8px; font-size: 12px; letter-spacing: .08em; color: var(--ink-quiet); }
+/* Logo: text wordmark in the brand font, weight 500, normal tracking (Infinitum brand.css .wordmark). */
+.brand { display: inline-flex; align-items: center; height: 52px; font-size: 20px; font-weight: 500; letter-spacing: normal; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.brand sup { font-size: .38em; font-weight: 400; letter-spacing: 0; margin-left: .08em; align-self: flex-start; margin-top: 16px; }
 .spacer { flex: 1; }
 .top-links { display: flex; align-items: center; gap: 22px; }
 .nav-link { position: relative; padding: 8px 0; font-size: 13px; color: var(--ink); text-decoration: none; white-space: nowrap; background: none; border: 0; }

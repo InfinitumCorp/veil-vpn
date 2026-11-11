@@ -247,8 +247,10 @@ const route = () => {
   $$('[data-nav]').forEach((a) => (a.dataset.nav === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   if (v === 'revenue') renderRevenue();
   if (v === 'earn') renderEarn();
+  if (v === 'servers' || v === 'connect') retryServers();
   window.scrollTo(0, 0);
 };
+let retryServers = () => {};   // set once the server list loader exists (below)
 addEventListener('hashchange', route);
 
 // ---------------------------------------------------------------- connect view
@@ -332,7 +334,7 @@ function renderServers(q = '') {
   const list = servers.filter((s) => !q || `${s.city} ${s.country}`.toLowerCase().includes(q));
   $('#srv-count').textContent = String(servers.length);
   $('#srv-list').innerHTML = list.length ? list.map((s) => `<li><button type="button" data-id="${s.id}" aria-pressed="${s.id === selected}" ${s.online === false ? 'disabled' : ''}><span class="cc mono">${cc(s.flag)}</span><span>${s.city}<small>${s.country}${s.tor ? ' · Tor' : ''}${s.online === false ? ' · offline' : ''}</small></span><span class="load" title="Load ${s.load}%"><i style="width:${s.load}%"></i></span><span class="ping mono">${s.load}%</span></button></li>`).join('')
-    : '<li class="fine" style="padding:16px 0">No match.</li>';
+    : `<li class="fine" style="padding:16px 0">${servers.length ? 'No match.' : 'Loading locations…'}</li>`;
 }
 $('#srv-search').addEventListener('input', (e) => renderServers(e.target.value));
 $('#srv-list').addEventListener('click', async (e) => {
@@ -560,13 +562,28 @@ $('#dev-get').addEventListener('click', async () => {
   finally { btn.disabled = false; }
 });
 if (!gated) api.setEarn(SET.earn);
-if (!gated) try {
-  servers = await api.servers();
-  conn = await api.state();
-  let saved = null; try { saved = localStorage.getItem('veil-vpn-server'); } catch { /* ignore */ }
-  selected = conn.server || (servers.some((s) => s.id === saved) ? saved : servers[0]?.id);
-} catch (e) { toast('Offline'); }
-if (gated) route(); else { renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
+if (!gated) renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
+if (!gated) try { conn = await api.state(); } catch { /* keep the default */ }
+// On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
+// until the list arrives, instead of staying on an empty Locations screen.
+let serversTry = 0, serversTimer = null, serversBusy = false;
+async function loadServers() {
+  if (serversBusy) return;
+  serversBusy = true; clearTimeout(serversTimer);
+  try {
+    const list = await api.servers();
+    if (!Array.isArray(list) || !list.length) throw new Error('empty');
+    servers = list; serversTry = 0;
+    let saved = null; try { saved = localStorage.getItem('veil-vpn-server'); } catch { /* ignore */ }
+    if (!servers.some((s) => s.id === selected)) selected = servers.some((s) => s.id === conn.server) ? conn.server : servers.some((s) => s.id === saved) ? saved : servers[0].id;
+    renderLoc(); renderServers($('#srv-search').value); loadAd();
+  } catch {
+    if (serversTry === 0) toast('Offline. Retrying.');
+    serversTimer = setTimeout(loadServers, Math.min(30_000, 2000 * 2 ** serversTry++));
+  } finally { serversBusy = false; }
+}
+retryServers = () => { if (!servers.length) loadServers(); };
+if (gated) route(); else { await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
 statTimer = setInterval(async () => {
   if (gated) return;
   if (LIVE) {
