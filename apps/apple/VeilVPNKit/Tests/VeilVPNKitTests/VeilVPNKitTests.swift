@@ -216,7 +216,8 @@ final class ControlAndCumulusTests: XCTestCase {
         {"mode":"wireguard","exp":1700000000000,"tor":false,"block":true,"manual":false,"server":{"id":"zrh","city":"Zürich","country":"Switzerland","flag":"🇨🇭","region":"eu","load":12,"online":true,"modes":["wireguard","ikev2"],"tor":true},"wireguard":{"address":"10.66.0.2/32","dns":"10.66.0.1","peerPublicKey":"\(peer)","endpoint":"203.0.113.8:51820","allowedIps":"0.0.0.0/0, ::/0","keepalive":25}}
         """.data(using: .utf8)!
         let transport = ScriptedTransport { request in
-            let body = request.body.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            // JSONEncoder on Linux writes "/" as an escaped slash, and base64 keys can contain "/".
+            let body = (request.body.flatMap { String(data: $0, encoding: .utf8) } ?? "").replacingOccurrences(of: "\\/", with: "/")
             if request.url.path.hasSuffix("/v1/session") {
                 return HTTPResponse(status: 200, body: Data("{\"token\":\"sid.secret\"}".utf8))
             }

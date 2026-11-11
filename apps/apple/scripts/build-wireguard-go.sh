@@ -29,6 +29,14 @@ fi
 # 5.5; Xcode 16.4+ rejects that. The Xcode project uses this checkout as a local package.
 sed -i.orig 's#^// swift-tools-version:5\.3$#// swift-tools-version:5.5#' "${CACHE}/Package.swift"
 rm -f "${CACHE}/Package.swift.orig"
+# Newer SDKs no longer pull u_int32_t/u_char in implicitly; WireGuardKitC.h needs <sys/types.h>.
+python3 - "${CACHE}/Sources/WireGuardKitC/WireGuardKitC.h" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+if "#include <sys/types.h>" not in text:
+    path.write_text(text.replace('#include "key.h"', '#include <sys/types.h>\n#include "key.h"', 1))
+PY
 
 if [[ "${1:-}" == "--fetch-only" ]]; then
   exit 0
