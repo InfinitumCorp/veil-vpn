@@ -59,7 +59,8 @@ final class VeilModel {
     private var uiTest = false
 
     init() {
-        uiTest = CommandLine.arguments.contains("-veil-ui-test")
+        let isUITest = CommandLine.arguments.contains("-veil-ui-test")
+        uiTest = isUITest
         let platform: String
         #if os(macOS)
         platform = "macos"
@@ -79,7 +80,7 @@ final class VeilModel {
         device = DeviceIdentity(
             id: KeychainStore.deviceID(),
             platform: platform,
-            integrity: uiTest ? "" : DeviceIdentity.integrityList(simulator: simulator, debuggable: debuggable)
+            integrity: isUITest ? "" : DeviceIdentity.integrityList(simulator: simulator, debuggable: debuggable)
         )
         controlURL = Self.controlURL()
         client = ControlClient(
