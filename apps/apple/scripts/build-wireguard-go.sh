@@ -46,7 +46,8 @@ PY
 mkdir -p "${CONFIGURATION_BUILD_DIR}"
 PREBUILT="${ROOT}/.build/wg-go/${PLATFORM_NAME}/libwg-go.a"
 if [[ "${VEIL_WG_REUSE:-}" == "1" && -f "${PREBUILT}" ]]; then
-  cp "${PREBUILT}" "${CONFIGURATION_BUILD_DIR}/libwg-go.a"
+  # CI may point CONFIGURATION_BUILD_DIR at the cache itself; macOS cp fails on a self-copy.
+  [[ "${PREBUILT}" -ef "${CONFIGURATION_BUILD_DIR}/libwg-go.a" ]] || cp "${PREBUILT}" "${CONFIGURATION_BUILD_DIR}/libwg-go.a"
   exit 0
 fi
 
@@ -74,4 +75,6 @@ make -C "${CACHE}/Sources/WireGuardKitGo" \
   GOOS_iphonesimulator=ios
 
 mkdir -p "$(dirname "${PREBUILT}")"
-cp "${CONFIGURATION_BUILD_DIR}/libwg-go.a" "${PREBUILT}"
+if [[ ! "${CONFIGURATION_BUILD_DIR}/libwg-go.a" -ef "${PREBUILT}" ]]; then
+  cp "${CONFIGURATION_BUILD_DIR}/libwg-go.a" "${PREBUILT}"
+fi
