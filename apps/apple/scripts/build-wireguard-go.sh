@@ -3,21 +3,14 @@
 # The sources are fetched at a pinned commit and are not committed here.
 # Go's 2023 runtime patch is applied when it still matches; otherwise the
 # bridge is built without it (handshake timing across sleep is less precise).
+# Run with --fetch-only once before opening the Xcode project: it uses the
+# checkout in .build/wireguard-apple as a local Swift package.
 set -euo pipefail
 
 PIN="2fec12a6e1f6e3460b6ee483aa00ad29cddadab1"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CACHE="${ROOT}/.build/wireguard-apple"
 LOCK="${ROOT}/.build/wireguard-apple.lockdir"
-
-if ! command -v go >/dev/null 2>&1; then
-  echo "error: Go is required to build the WireGuard tunnel (install Go 1.22)" >&2
-  exit 1
-fi
-if [[ -z "${CONFIGURATION_BUILD_DIR:-}" || -z "${PLATFORM_NAME:-}" || -z "${SDKROOT:-}" ]]; then
-  echo "error: run from Xcode, or set PLATFORM_NAME, SDKROOT, ARCHS and CONFIGURATION_BUILD_DIR" >&2
-  exit 1
-fi
 
 mkdir -p "${ROOT}/.build"
 while ! mkdir "${LOCK}" 2>/dev/null; do sleep 1; done
@@ -30,6 +23,24 @@ if [[ "$(git -C "${CACHE}" rev-parse HEAD 2>/dev/null || true)" != "${PIN}" ]]; 
   git -C "${CACHE}" remote add origin https://github.com/WireGuard/wireguard-apple.git
   GIT_TERMINAL_PROMPT=0 git -C "${CACHE}" fetch --depth 1 origin "${PIN}"
   git -C "${CACHE}" checkout --detach FETCH_HEAD
+fi
+
+# The pinned manifest says swift-tools-version 5.3 but uses .macOS(.v12)/.iOS(.v15), which need
+# 5.5; Xcode 16.4+ rejects that. The Xcode project uses this checkout as a local package.
+sed -i.orig 's#^// swift-tools-version:5\.3$#// swift-tools-version:5.5#' "${CACHE}/Package.swift"
+rm -f "${CACHE}/Package.swift.orig"
+
+if [[ "${1:-}" == "--fetch-only" ]]; then
+  exit 0
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "error: Go is required to build the WireGuard tunnel (install Go 1.22)" >&2
+  exit 1
+fi
+if [[ -z "${CONFIGURATION_BUILD_DIR:-}" || -z "${PLATFORM_NAME:-}" || -z "${SDKROOT:-}" ]]; then
+  echo "error: run from Xcode, or set PLATFORM_NAME, SDKROOT, ARCHS and CONFIGURATION_BUILD_DIR" >&2
+  exit 1
 fi
 
 MAKEFILE="${CACHE}/Sources/WireGuardKitGo/Makefile"

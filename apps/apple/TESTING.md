@@ -15,7 +15,7 @@ These tests cover config parsing, key handling, the state machine, control-serve
 
 ## Xcode (macOS 14+, Xcode 16+)
 
-The project is `apps/apple/VeilVPN.xcodeproj`. It builds an iOS and macOS app and a Network Extension packet tunnel. WireGuardKit is fetched from `WireGuard/wireguard-apple` at commit `2fec12a6e1f6e3460b6ee483aa00ad29cddadab1` (MIT). The Go bridge is not in the Swift package, so the tunnel target runs `scripts/build-wireguard-go.sh`. Install Go 1.22 first (`brew install go`).
+The project is `apps/apple/VeilVPN.xcodeproj`. It builds an iOS and macOS app and a Network Extension packet tunnel. WireGuardKit is fetched from `WireGuard/wireguard-apple` at commit `2fec12a6e1f6e3460b6ee483aa00ad29cddadab1` (MIT). The Go bridge is not in the Swift package, so the tunnel target runs `scripts/build-wireguard-go.sh`. Install Go 1.22 first (`brew install go`). Before opening the project the first time, fetch WireGuardKit into `.build/wireguard-apple` (the project uses it as a local package): `bash scripts/build-wireguard-go.sh --fetch-only`.
 
 No signing identity is required to compile:
 

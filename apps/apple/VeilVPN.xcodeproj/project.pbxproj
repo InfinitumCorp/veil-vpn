@@ -224,7 +224,7 @@
 			mainGroup = E1A100000000000000000017;
 			packageReferences = (
 				E1A100000000000000000019 /* XCLocalSwiftPackageReference "VeilVPNKit" */,
-				E1A10000000000000000001A /* XCRemoteSwiftPackageReference "wireguard-apple" */,
+				E1A10000000000000000001A /* XCLocalSwiftPackageReference "wireguard-apple" */,
 			);
 			productRefGroup = E1A100000000000000000018 /* Products */;
 			projectDirPath = "";
@@ -487,18 +487,11 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = VeilVPNKit;
 		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		E1A10000000000000000001A /* XCRemoteSwiftPackageReference "wireguard-apple" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/WireGuard/wireguard-apple";
-			requirement = {
-				kind = revision;
-				revision = 2fec12a6e1f6e3460b6ee483aa00ad29cddadab1;
-			};
+		E1A10000000000000000001A /* XCLocalSwiftPackageReference "wireguard-apple" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ".build/wireguard-apple";
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		E1A10000000000000000001B /* VeilVPNKit */ = {
@@ -513,7 +506,7 @@
 		};
 		E1A10000000000000000001D /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E1A10000000000000000001A /* XCRemoteSwiftPackageReference "wireguard-apple" */;
+			package = E1A10000000000000000001A /* XCLocalSwiftPackageReference "wireguard-apple" */;
 			productName = WireGuardKit;
 		};
 /* End XCSwiftPackageProductDependency section */
