@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>VEIL&lt;/&gt;™</title>
+<title>V | VPN™</title>
 <meta name="description" content="Free, private VPN. Ad revenue shared with the community in $VEIL.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
@@ -13,10 +13,12 @@
 <meta name="apple-mobile-web-app-title" content="VEIL&lt;/&gt;™">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="firm-suite.css">
+<link rel="stylesheet" href="i18n/i18n.css">
+<script type="module" src="i18n/start.js"></script>
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="#connect" data-nav="connect">VEIL<span class="code">&lt;/&gt;</span><sup class="tm">™</sup></a>
+  <a class="brand" href="#connect" data-nav="connect">V | VPN<sup class="tm">™</sup></a>
   <nav class="tabs" aria-label="Main">
     <a href="#connect" data-nav="connect">Connect</a>
     <a href="#servers" data-nav="servers">Locations</a>
@@ -28,6 +30,18 @@
 </header>
 
 <main id="main">
+  <!-- SIGN IN (app and extension: shown until the person signs in with Cumulus ID) -->
+  <section class="view signin" id="view-signin" aria-labelledby="h-signin" hidden>
+    <div class="context"><span>Cumulus ID</span><span>Infinitum's one sign-in</span></div>
+    <h2 id="h-signin">Sign in. <span class="grey">Stay private.</span></h2>
+    <p class="signin-lead">VEIL uses your Cumulus ID. Your $VEIL balance and wallet follow you across your phone and browsers. VEIL keeps only a hash of the ID, never your name or email, and never the sites you visit.</p>
+    <div class="actions">
+      <button class="primary" id="cid-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
+      <button class="ghost" id="cid-create" type="button">Create a Cumulus ID</button>
+    </div>
+    <p class="fine" id="cid-status" role="status" aria-live="polite"></p>
+  </section>
+
   <!-- CONNECT -->
   <section class="view" id="view-connect" aria-labelledby="h-connect">
     <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>
@@ -125,6 +139,7 @@
     <div class="context"><span>Settings</span><span>On this device</span></div>
     <h2 id="h-settings">Settings.</h2>
     <ul class="settings">
+      <li class="account-row" id="account-row" hidden><span>Cumulus ID <small id="account-who"></small></span><button class="ghost" id="cid-signout" type="button">Sign out</button></li>
       <li><span>Block trackers <small>Ads, analytics and data collectors, for every app</small></span><label class="switch"><input type="checkbox" data-set="block" checked><span></span><b class="sr">Block trackers</b></label></li>
       <li class="android-only" hidden><span>Unsafe network alerts <small>A notification when you join Wi-Fi while not protected</small></span><label class="switch"><input type="checkbox" data-set="alerts" checked><span></span><b class="sr">Unsafe network alerts</b></label></li>
       <li><span>Kill switch</span><label class="switch"><input type="checkbox" data-set="kill" checked><span></span><b class="sr">Kill switch</b></label></li>
@@ -158,11 +173,11 @@
       <ul>
         <li><b>The sites and apps you use.</b> Servers keep no traffic or DNS logs. Blocked trackers are only counted, never named.</li>
         <li><b>What you send.</b> Your traffic is encrypted from your device to our server, and HTTPS sites stay encrypted beyond it.</li>
-        <li><b>Who you are.</b> No account, email or phone number. Your IP address is never written to disk.</li>
+        <li><b>Who you are.</b> You sign in with Cumulus ID; VEIL keeps only a hash of it, no name, email or phone number. Your IP address is never written to disk.</li>
         <li><b>Your Wi-Fi.</b> Network checks and alerts run on your phone. The network's name is never read.</li>
         <li><b>Where Tor sends your traffic.</b> With Tor on, our server sees only that you use Tor.</li>
       </ul>
-      <p>We keep an anonymous session, minutes connected, ad view counts, a hashed device ID (one earning account per device) and, if you link one, your wallet address. <a href="https://infinitumveilvpn.app/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+      <p>We keep a session tied to a hash of your Cumulus ID, minutes connected, ad view counts, a hashed device ID (one earning account per device) and, if you link one, your wallet address. <a href="https://infinitumveilvpn.app/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
     </details>
   </section>
 </main>

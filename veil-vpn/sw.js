@@ -1,6 +1,6 @@
 // Offline shell cache so the installed app opens without a network.
-const CACHE = 'veil-vpn-v1';
-const FILES = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'veil-vpn-v2';
+const FILES = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icon.svg', 'i18n/i18n.js', 'i18n/i18n.css', 'i18n/start.js', 'i18n/catalogs.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));

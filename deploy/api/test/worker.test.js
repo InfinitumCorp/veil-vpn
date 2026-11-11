@@ -46,7 +46,8 @@ before(async () => {
   await new Promise((r) => agentSrv.listen(0, '127.0.0.1', r));
   const agentUrl = `http://127.0.0.1:${agentSrv.address().port}`;
   env = {
-    NODE_ENV: 'production', TOKEN_SECRET: 'test-token-secret-0123456789abcdef', AGENT_SECRET, ADMIN_KEY, FRAUD_NET_MAX: '2',
+    // These tests cover the API itself; Cumulus ID sign-in (on by default in production) has its own test below.
+    NODE_ENV: 'production', CID_REQUIRED: '0', TOKEN_SECRET: 'test-token-secret-0123456789abcdef', AGENT_SECRET, ADMIN_KEY, FRAUD_NET_MAX: '2',
     NODES: JSON.stringify([{ id: 'ams', city: 'Amsterdam', country: 'NL', flag: '🇳🇱', region: 'eu', agentUrl,
       proxy: { scheme: 'https', host: 'ams.example', port: 443 }, wg: { endpoint: 'ams.example:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true }]),
   };
@@ -202,4 +203,36 @@ test('scheduled purge deletes network tags older than 3 days', async () => {
   await db.run('INSERT INTO net_day (day, net, sid) VALUES (?, ?, ?)', '2020-01-01', 'old', 'x');
   await worker.scheduled({}, env, { waitUntil: () => {} });
   assert.equal((await db.all('SELECT * FROM net_day WHERE day = ?', '2020-01-01')).length, 0);
+});
+
+test('production: sessions need a Cumulus ID, and one CID is one account across devices (Postgres)', async () => {
+  const people = { 'carol-laptop-0123456789abcdef': 'cid_carol', 'carol-phone-0123456789abcdef0': 'cid_carol' };
+  const asked = [];
+  const fetchFn = async (url, init = {}) => {
+    if (!String(url).startsWith('https://ru-id.example/api/id/')) return fetch(url, init);   // node agent
+    asked.push(String(url));
+    const cid = people[/^Bearer (.+)$/.exec(init.headers?.authorization || '')?.[1]];
+    return new Response(JSON.stringify(cid ? { cid } : { error: 'Not signed in' }), { status: cid ? 200 : 401 });
+  };
+  const w = makeWorker(() => ({ db, close: async () => {} }), { fetchFn });
+  const e = { ...env, CID_REQUIRED: undefined, CID_ISSUER: 'https://ru-id.example' };
+  const post = async (path, body, { token, device = 'worker-cid-device-1' } = {}) => {
+    const r = await w.fetch(new Request(`https://api.test${path}`, { method: body ? 'POST' : 'GET', body: body && JSON.stringify(body),
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.9', 'x-veil-device': device, ...(token && { authorization: `Bearer ${token}` }) } }), e, { waitUntil: () => {} });
+    return { status: r.status, body: await r.json() };
+  };
+  assert.equal((await post('/v1/cid')).body.issuer, 'https://ru-id.example');
+  assert.deepEqual(await post('/v1/session', {}), { status: 401, body: { error: 'sign_in_required' } });
+  assert.equal((await post('/v1/me', undefined, { token })).body.error, 'sign_in_required');   // the earlier unsigned session
+  const a = await post('/v1/session', { cid_token: 'carol-laptop-0123456789abcdef' });
+  assert.equal(a.status, 200, JSON.stringify(a.body)); assert.equal(a.body.signedIn, true);
+  assert.deepEqual(asked, ['https://ru-id.example/api/id/userinfo']);
+  const wallet = '8'.repeat(44);
+  assert.equal((await post('/v1/wallet', { address: wallet }, { token: a.body.token })).body.wallet, wallet);
+  const b = await post('/v1/session', { cid_token: 'carol-phone-0123456789abcdef0' }, { device: 'worker-cid-device-2' });
+  const me = await post('/v1/me', undefined, { token: b.body.token, device: 'worker-cid-device-2' });
+  assert.equal(me.body.wallet, wallet); assert.equal(me.body.signedIn, true);
+  const rows = await db.all('SELECT account FROM sessions WHERE account IS NOT NULL');
+  assert.equal(new Set(rows.map((r) => r.account)).size, 1);
+  assert.ok(!JSON.stringify(rows).includes('cid_carol'));
 });

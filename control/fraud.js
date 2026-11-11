@@ -55,13 +55,19 @@ export function createFraud({ secret, maxMinutes, env }) {
 
   // Why this session may not earn right now, or null. Checked before each rewarded minute.
   async function earnBlock(db, req, s, today) {
-    const cur = await db.get('SELECT device_hash, wallet, flags FROM sessions WHERE id = ?', s.id);
+    const cur = await db.get('SELECT device_hash, wallet, flags, account FROM sessions WHERE id = ?', s.id);
     if (flagsOf(cur).some((f) => FLAG_BLOCKS.has(f))) return 'under_review';
     if (!cur.device_hash) return 'device_unverified';
     // One earning session per device per day (a new session on the same device is a duplicate account).
     const dup = await db.get(`SELECT 1 AS x FROM usage u JOIN sessions s ON s.id = u.sid
       WHERE s.device_hash = ? AND u.day = ? AND u.sid != ? AND u.minutes > 0 LIMIT 1`, cur.device_hash, today, s.id);
     if (dup) return 'device_limit';
+    // All devices signed in with one Cumulus ID share one daily limit.
+    if (cur.account) {
+      const a = (await db.get(`SELECT COALESCE(SUM(u.minutes), 0) AS m FROM usage u JOIN sessions s ON s.id = u.sid
+        WHERE s.account = ? AND u.day = ?`, cur.account, today)).m;
+      if (Number(a) >= maxMinutes) return 'daily_limit';
+    }
     // Sessions sharing one wallet share one daily limit.
     if (cur.wallet) {
       const w = (await db.get(`SELECT COALESCE(SUM(u.minutes), 0) AS m FROM usage u JOIN sessions s ON s.id = u.sid
@@ -90,20 +96,20 @@ export function createFraud({ secret, maxMinutes, env }) {
     return null;
   }
 
-  // Linking a wallet already used by walletMax other sessions is refused.
+  // Linking a wallet already used by walletMax other people (a Cumulus ID, or one unsigned session) is refused.
   async function walletBlock(db, s, wallet) {
     if (!wallet) return null;
-    const c = (await db.get('SELECT COUNT(*) AS c FROM sessions WHERE wallet = ? AND id != ?', wallet, s.id)).c;
+    const c = (await db.get('SELECT COUNT(DISTINCT COALESCE(account, id)) AS c FROM sessions WHERE wallet = ? AND COALESCE(account, id) != ?', wallet, s.account || s.id)).c;
     return Number(c) >= cfg.walletMax ? 'wallet_in_use' : null;
   }
 
-  // Epoch payout rows: minutes are capped at maxMinutes per device and per wallet across all their
+  // Epoch payout rows: minutes are capped at maxMinutes per device, per Cumulus ID and per wallet across all their
   // sessions (scaled down evenly), and flagged sessions are paid into 'held' for admin review.
   async function epochRows(db, d) {
-    const rows = await db.all(`SELECT u.sid, u.minutes, s.device_hash AS device, s.wallet, COALESCE(s.flags, '') AS flags
+    const rows = await db.all(`SELECT u.sid, u.minutes, s.device_hash AS device, s.account, s.wallet, COALESCE(s.flags, '') AS flags
       FROM usage u LEFT JOIN sessions s ON s.id = u.sid WHERE u.day = ? AND u.minutes > 0`, d);
     const factor = new Map(rows.map((r) => [r.sid, 1]));
-    for (const key of ['device', 'wallet']) {
+    for (const key of ['device', 'account', 'wallet']) {
       const groups = new Map();
       for (const r of rows) if (r[key]) groups.set(r[key], [...(groups.get(r[key]) || []), r]);
       for (const g of groups.values()) {
