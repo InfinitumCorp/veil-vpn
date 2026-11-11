@@ -31,7 +31,7 @@ const html = readFileSync(p('veil-vpn/index.html'), 'utf8')
   .replace(/<meta name="apple-[^>]*>\n?/g, '');
 writeFileSync(path.join(out, 'index.html'), html);
 
-// 3. PNG icons: the framed V |™ mark (scripts/icon.mjs).
+// 3. PNG icons: the V |™ mark in the brand font (scripts/icon.mjs).
 for (const s of [16, 32, 48, 128]) writeFileSync(path.join(out, `icons/${s}.png`), pngIcon(s));
 
 // 3b. Firefox bundle: same files, Firefox manifest (event page, blocking webRequest, gecko id).
