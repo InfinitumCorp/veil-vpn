@@ -205,6 +205,16 @@ test('scheduled purge deletes network tags older than 3 days', async () => {
   assert.equal((await db.all('SELECT * FROM net_day WHERE day = ?', '2020-01-01')).length, 0);
 });
 
+test('lists the bundled servers when NODES is not set', async () => {
+  const w = makeWorker(() => ({ db, close: async () => {} }));
+  const k = 'test-secret-'.padEnd(32, 'x');
+  const r = await w.fetch(new Request('https://api.test/v1/servers'), { TOKEN_SECRET: k, AGENT_SECRET: k, ADMIN_KEY: k }, {});
+  const { servers } = await r.json();
+  const ids = servers.map((s) => s.id);
+  assert.ok(ids.includes('use2-1') && ids.includes('ane1-1') && ids.includes('sae1-1'), ids.join(','));
+  assert.ok(servers.every((s) => s.modes.includes('wireguard') && s.modes.includes('openvpn')));
+});
+
 test('production: sessions need a Cumulus ID, and one CID is one account across devices (Postgres)', async () => {
   const people = { 'carol-laptop-0123456789abcdef': 'cid_carol', 'carol-phone-0123456789abcdef0': 'cid_carol' };
   const asked = [];
