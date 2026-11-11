@@ -73,6 +73,9 @@ jobs:
             VEIL_WG_REUSE=1 \
             build
       - name: Test macOS
+        # Ad-hoc signed apps that claim Network Extension / app-group
+        # entitlements are killed at launch (RunningBoard error 5), so the
+        # macOS tests run the app without entitlements.
         working-directory: apps/apple
         run: |
           xcodebuild -project VeilVPN.xcodeproj -scheme VeilVPN \
@@ -80,6 +83,7 @@ jobs:
             -configuration Debug \
             -derivedDataPath "$RUNNER_TEMP/dd-mac-test" \
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS= \
             VEIL_WG_REUSE=1 \
             test
       - name: Test iOS Simulator
