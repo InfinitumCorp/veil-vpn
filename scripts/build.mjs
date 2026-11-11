@@ -1,9 +1,9 @@
 // Builds dist/extension and syncs shared code into the web app.
 //   CONTROL_URL=https://api.vpn.example.com node scripts/build.mjs
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { pngIcon } from './icon.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const p = (...x) => path.join(root, ...x);
@@ -31,40 +31,8 @@ const html = readFileSync(p('veil-vpn/index.html'), 'utf8')
   .replace(/<meta name="apple-[^>]*>\n?/g, '');
 writeFileSync(path.join(out, 'index.html'), html);
 
-// 3. PNG icons drawn in code: a dark "</>" on white.
-function crc32(buf) {
-  let c, crc = ~0;
-  for (const b of buf) { c = (crc ^ b) & 255; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; }
-  return ~crc >>> 0;
-}
-const chunk = (type, data) => {
-  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
-  const td = Buffer.concat([Buffer.from(type), data]);
-  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
-  return Buffer.concat([len, td, crc]);
-};
-function icon(size) {
-  const segDist = (px, py, ax, ay, bx, by) => {
-    const dx = bx - ax, dy = by - ay; const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
-    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-  };
-  const raw = Buffer.alloc(size * (size * 4 + 1));
-  const w = size * 0.085;
-  for (let y = 0; y < size; y++) {
-    raw[y * (size * 4 + 1)] = 0;
-    for (let x = 0; x < size; x++) {
-      const u = (x + 0.5) / size, v = (y + 0.5) / size;
-      const S = [[0.33,0.34,0.17,0.5],[0.17,0.5,0.33,0.66],[0.67,0.34,0.83,0.5],[0.83,0.5,0.67,0.66],[0.56,0.29,0.44,0.71]];
-      const d = Math.min(...S.map((s) => segDist(u, v, ...s))) * size;
-      const a = Math.max(0, Math.min(1, w - d + 0.5)); // anti-aliased stroke
-      const i = y * (size * 4 + 1) + 1 + x * 4;
-      raw[i] = 255 - (255 - 17) * a; raw[i + 1] = 255 - (255 - 24) * a; raw[i + 2] = 255 - (255 - 32) * a; raw[i + 3] = 255;
-    }
-  }
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4); ihdr[8] = 8; ihdr[9] = 6;
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-}
-for (const s of [16, 32, 48, 128]) writeFileSync(path.join(out, `icons/${s}.png`), icon(s));
+// 3. PNG icons: the framed V |™ mark (scripts/icon.mjs).
+for (const s of [16, 32, 48, 128]) writeFileSync(path.join(out, `icons/${s}.png`), pngIcon(s));
 
 // 3b. Firefox bundle: same files, Firefox manifest (event page, blocking webRequest, gecko id).
 const ff = p('dist/firefox');
