@@ -506,6 +506,7 @@ $('#dev-get').addEventListener('click', async () => {
   finally { btn.disabled = false; }
 });
 api.setEarn(SET.earn);
+renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
 try { conn = await api.state(); } catch { /* keep the default */ }
 // On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
 // until the list arrives, instead of staying on an empty Locations screen.
