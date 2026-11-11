@@ -23,7 +23,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             self?.log.debug("wireguard event \(String(describing: level), privacy: .public)")
         }
         liveAdapter = adapter
-        config = TunnelProviderConfig(provider.protocolConfiguration as? NETunnelProviderProtocol)
+        config = TunnelProviderConfig(protocolConfiguration as? NETunnelProviderProtocol)
         guard let text = config.wgQuick, let parsed = try? WireGuardConfig.parse(text), parsed.hasProtectedDNS else {
             completionHandler(TunnelError.badConfig)
             return
@@ -64,7 +64,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             config.earn = text.hasSuffix("1")
         }
         let snapshot = queue.sync { machine.snapshot }
-        completionHandler(try? JSONEncoder().encode(snapshot))
+        completionHandler?(try? JSONEncoder().encode(snapshot))
     }
 
     private func schedule() {
