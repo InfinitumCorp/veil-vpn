@@ -4,7 +4,9 @@
 // Configuration (Worker env):
 //   secrets  TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY (24+ chars each)
 //            DATABASE_URL (Supabase pooler URI, port 6543), unless the HYPERDRIVE binding is set
-//   vars     NODE_ENV=production, optional CPM_USD, CPC_USD, FRAUD_* tuning
+//   vars     NODE_ENV=production, optional CPM_USD, CPC_USD, FRAUD_* tuning,
+//            CID_ISSUER (Cumulus ID issuer or its mirror, default https://id.cumuluscloud.app),
+//            CID_REQUIRED (default 1 in production: every session needs a Cumulus ID sign-in)
 //   servers  deploy/api/nodes.json, bundled into the Worker (a text var is capped at 5.1 kB, and each
 //            server's entry is ~1.8 kB). An env NODES (JSON array) overrides it; the tests use that.
 // Client IPs (cf-connecting-ip) are used only in memory for rate limits and the daily-keyed
@@ -28,12 +30,13 @@ export function openPostgres(env) {
   return { db: postgresAdapter(sql, env.DB_SCHEMA || 'veil_vpn'), close: () => sql.end({ timeout: 5 }) };
 }
 
-export function makeWorker(openDb = openPostgres) {
+export function makeWorker(openDb = openPostgres, { fetchFn = fetch } = {}) {
   let control = null; // one per isolate: holds node health, rate limits and dedupe maps
   const get = (env) => control ??= createControl({
     env: (k, d) => (env[k] ?? d),
     nodes: typeof env.NODES === 'string' ? JSON.parse(env.NODES) : (env.NODES || bundledNodes),
     ads,
+    fetchFn: (...a) => fetchFn(...a),
   });
 
   return {

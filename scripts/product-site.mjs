@@ -10,6 +10,8 @@ const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'site');
 const ORIGIN = 'https://infinitumveilvpn.app';
 const MAIN = 'https://infinitumcorporation.ai';
+// Cumulus ID issuer for the site's sign-in button. Set CID_ISSUER to a mirror (e.g. one reachable from Russia).
+const CID_ISSUER = (process.env.CID_ISSUER || '').replace(/\/+$/, '').replace(/["<>&]/g, '');
 const HUB = 'https://app.infinitumcorporation.ai';
 const attr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -60,7 +62,7 @@ ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
 <!-- Sign in with Cumulus://ID (copy of https://id.cumuluscloud.app/id/button.js) -->
-<script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
+<script src="/cumulus-id.js" data-client="veil-vpn"${CID_ISSUER ? ` data-issuer="${CID_ISSUER}"` : ''} defer></script>
 </body>
 </html>
 `;
@@ -73,7 +75,7 @@ const facts = (items) => `<ul class="facts">${items.map(([h, p]) => `<li><h3>${h
 const PANELS = [
   ['how', 'How it works', facts([
     ['Every app, one tunnel', 'On Android, all of your phone\'s traffic is encrypted. In Chrome and Edge, the extension routes the browser.'],
-    ['No account', 'No email and no sign-up. The app gets an anonymous session.'],
+    ['Cumulus ID sign-in', 'Sign in with your Cumulus ID, or create one in the app. One balance across your devices; VEIL keeps only a hash of the ID.'],
     ['Honest status', '"Protected" appears only after the server has answered through the tunnel, and is checked again every minute.'],
     ['Kill switch', 'If the server drops, traffic is held instead of leaking, and VEIL reconnects on its own.'],
     ['Tor over VPN', 'One switch sends your traffic from our server into the Tor network, .onion sites included.'],
@@ -97,9 +99,9 @@ const PANELS = [
   ['cant-see', 'What VEIL can\'t see', facts([
     ['The sites and apps you use', 'No traffic logs and no DNS logs. Blocked trackers are counted, never named.'],
     ['What you send', 'Encrypted from your device to our server. HTTPS sites stay encrypted all the way.'],
-    ['Who you are', 'No account, email or phone number. Your IP address is never written to disk.'],
+    ['Who you are', 'Only a hash of your Cumulus ID: no name, email or phone number. Your IP address is never written to disk.'],
     ['Where Tor takes you', 'With Tor over VPN on, our server sees only that you use Tor.'],
-  ]) + '<p>What we do keep: an anonymous session, minutes connected, ad view counts, a hashed device ID and, if you link one, a wallet address. <a href="/privacy">Privacy policy</a></p>'],
+  ]) + '<p>What we do keep: a session tied to a hash of your Cumulus ID, minutes connected, ad view counts, a hashed device ID and, if you link one, a wallet address. <a href="/privacy">Privacy policy</a></p>'],
   ['share', 'Revenue share', `<table class="tiers"><thead><tr><th scope="col">Tier</th><th scope="col">Members</th><th scope="col">Community</th><th scope="col">Network</th><th scope="col">Boost</th></tr></thead><tbody>`
     + TIERS.map(([name, from, c, n, , , , boost]) => `<tr><th scope="row">${name}</th><td>${people(from)}</td><td><strong>${c}%</strong></td><td>${n}%</td><td>${boost > 1 ? `${boost}×` : '—'}</td></tr>`).join('')
     + `</tbody></table><p>Each day's ad revenue is split by the tier the network is in; the rest goes to ecosystem, liquidity (10%) and team (5%). The community share is divided among members by the minutes they were connected that day. Larger tiers add a treasury boost in $VEIL, never extra cash.</p>`],
@@ -109,7 +111,7 @@ const PANELS = [
 const home = `<main id="main">
 <h1 class="headline">Private. Free. Shared.</h1>
 <p class="lead">A free VPN paid for by privacy-safe ads. Half or more of the ad revenue goes back to the people who use it.</p>
-<div class="workspace-strip"><span class="workspace" title="No account, no logs, nothing kept">Free forever</span></div>
+<div class="workspace-strip"><span class="workspace" title="No logs, nothing kept">Free forever</span></div>
 <p class="status">WireGuard · IKEv2 · OpenVPN · No logs · Tor over VPN</p>
 <nav class="bookmarks" id="get" aria-label="Get VEIL VPN">
 <a class="bookmark" href="/download/veil-vpn.apk" download>VEIL VPN for Android</a>

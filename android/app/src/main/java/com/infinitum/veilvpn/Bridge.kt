@@ -22,6 +22,7 @@ class Bridge(
     private val reply: (id: String, result: String?, error: String?) -> Unit,
     private val askVpnPermission: suspend (Intent?) -> Boolean,
     private val openVpnSettings: () -> Unit,
+    private val startSignIn: (create: Boolean) -> Unit,
 ) {
     private val api = ControlApi(ctx)
     private val prefs = ctx.getSharedPreferences("veil", Context.MODE_PRIVATE)
@@ -57,6 +58,16 @@ class Bridge(
             VeilService.disconnect(ctx)
             withTimeoutOrNull(5_000) { while (Vpn.state != "off") delay(100) }
             Vpn.snapshot().toString()
+        }
+        "account" -> CidSignIn.account(ctx).toString()
+        "signIn" -> { startSignIn(p.optBoolean("create", false)); JSONObject().put("opened", true).toString() }
+        "signOut" -> {
+            if (Vpn.state != "off") {
+                VeilService.disconnect(ctx)
+                withTimeoutOrNull(5_000) { while (Vpn.state != "off") delay(100) }
+            }
+            CidSignIn.signOut(ctx)
+            JSONObject().put("signedIn", false).toString()
         }
         "me" -> api.call("GET", "/v1/me").toString()
         "pool" -> api.call("GET", "/v1/pool").toString()

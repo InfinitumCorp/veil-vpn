@@ -90,6 +90,8 @@ function demoBackend() {
     async claim() { const n = S.pending; S.pending = 0; save(); return { queued: n > 0 ? 1 : 0 }; },
     setEarn(v) { earn = v; },
     async manual() { throw new Error('demo_manual'); },
+    // The demo is a simulation with nothing to sign in to; the app and the extension use Cumulus ID.
+    async account() { return { signedIn: true, demo: true }; },
   };
 }
 
@@ -116,7 +118,9 @@ const androidCall = (() => {
 })();
 
 function liveBackend() {
-  const call = ANDROID ? androidCall : extCall;
+  const raw = ANDROID ? androidCall : extCall;
+  // A session the server no longer accepts (signed out elsewhere, or made before Cumulus ID) shows sign-in.
+  const call = (type, payload) => raw(type, payload).catch((e) => { if (e.message === 'sign_in_required') signedOut(); throw e; });
   let myMinutes = 0;
   return {
     mode: ANDROID ? 'android' : 'extension',
@@ -136,6 +140,11 @@ function liveBackend() {
     claim: () => call('claim'),
     setEarn: (v) => call('setting', { key: 'earn', value: v }),
     manual: (server, mode, publicKey) => call('manual', { server, mode, publicKey }),
+    // Cumulus ID: { signedIn, profile: { username, email } }. signIn opens Cumulus ID in the browser
+    // (a Custom Tab on Android, a tab next to the extension); create asks for its sign-up page.
+    account: () => raw('account'),
+    signIn: (create) => raw('signIn', { create: !!create }),
+    signOut: () => raw('signOut'),
   };
 }
 
@@ -175,16 +184,63 @@ const cc = (flag = '') => [...flag].map((c) => c.codePointAt(0) - 0x1f1e6).filte
 const plural = (n, w) => `${fmtInt(n)} ${w}${Math.round(n) === 1 ? '' : 's'}`;
 const pct = (w) => (!w ? '0%' : w < 1e-4 ? '<0.01%' : `${(w * 100).toPrecision(2)}%`);
 const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
-const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
+const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', sign_in_required: 'Sign in with your Cumulus ID', cid_unreachable: 'Cumulus ID could not be reached. Try again', cid_failed: 'Sign-in did not finish. Try again', cid_mismatch: 'That sign-in did not match. Try again', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
 
 // ---------------------------------------------------------------- state
 let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = null;
 let down = 0, up = 0, statTimer = null;
 const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 
+// ---------------------------------------------------------------- Cumulus ID
+// The app and the extension sign in with Cumulus ID (id.cumuluscloud.app, or the mirror the build
+// names). Until then only the sign-in screen shows. "Create a Cumulus ID" opens the same sign-in with
+// the issuer's sign-up page first; either way the person comes back here signed in.
+let account = { signedIn: !LIVE };
+if (LIVE) { try { account = await api.account(); } catch { account = { signedIn: false }; } }
+let gated = !account.signedIn;
+document.documentElement.classList.toggle('signed-out', gated);
+function signedOut() {
+  if (gated) return;
+  gated = true; account = { signedIn: false };
+  document.documentElement.classList.add('signed-out');
+  paintAccount(); route();
+}
+function paintAccount() {
+  const p = account.signedIn && !account.demo ? account.profile || {} : null;
+  $('#account-row').hidden = !p;
+  if (p) $('#account-who').textContent = p.email || p.username || 'Signed in';
+}
+const cidButtons = () => [$('#cid-signin'), $('#cid-create')];
+async function startSignIn(create) {
+  const st = $('#cid-status');
+  st.textContent = create ? 'Opening Cumulus ID to create your ID.' : 'Opening Cumulus ID.';
+  cidButtons().forEach((b) => { b.disabled = true; });
+  try { await api.signIn(create); st.textContent = 'Finish in the browser, then come back here.'; }
+  catch (e) { st.textContent = errText(e); }
+  finally { setTimeout(() => cidButtons().forEach((b) => { b.disabled = false; }), 1500); }
+}
+$('#cid-signin').addEventListener('click', () => startSignIn(false));
+$('#cid-create').addEventListener('click', () => startSignIn(true));
+$('#cid-signout').addEventListener('click', async () => {
+  try { await api.signOut(); } catch { /* signed out on this device anyway */ }
+  location.reload();
+});
+// Back from the browser (Android resumes the app; the extension popup reopens): check again.
+async function recheck() {
+  if (!gated || !LIVE) return;
+  const a = await api.account().catch(() => null);
+  if (a?.signedIn) location.reload();
+  else if (a?.error) $('#cid-status').textContent = errText(new Error(a.error));
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recheck(); });
+window.__veilSignedIn = recheck;   // Android calls this when the sign-in link comes back
+paintAccount();
+
 // ---------------------------------------------------------------- navigation
 const VIEWS = ['connect', 'servers', 'earn', 'revenue', 'settings'];
 const route = () => {
+  $('#view-signin').hidden = !gated;
+  if (gated) { VIEWS.forEach((n) => { $(`#view-${n}`).hidden = true; }); return; }
   const h = location.hash.slice(1) === 'community' ? 'revenue' : location.hash.slice(1);
   const v = VIEWS.includes(h) ? h : 'connect';
   VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
@@ -304,7 +360,7 @@ $('#ad-body').addEventListener('click', () => {
   if (conn.state === 'on') api.adEvent(currentAd.id, 'click').then(() => { if (!$('#view-revenue').hidden) renderRevenue(); }).catch(() => {});
   if (currentAd.url) window.open(currentAd.url, '_blank', 'noopener');
 });
-setInterval(loadAd, 30_000);
+setInterval(() => { if (!gated) loadAd(); }, 30_000);
 
 // ---------------------------------------------------------------- earn view
 // Why the server stopped crediting minutes (fraud protection), in plain words.
@@ -505,9 +561,9 @@ $('#dev-get').addEventListener('click', async () => {
   } catch (e) { toast(errText(e)); }
   finally { btn.disabled = false; }
 });
-api.setEarn(SET.earn);
-renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
-try { conn = await api.state(); } catch { /* keep the default */ }
+if (!gated) api.setEarn(SET.earn);
+if (!gated) renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
+if (!gated) try { conn = await api.state(); } catch { /* keep the default */ }
 // On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
 // until the list arrives, instead of staying on an empty Locations screen.
 let serversTry = 0, serversTimer = null, serversBusy = false;
@@ -527,9 +583,9 @@ async function loadServers() {
   } finally { serversBusy = false; }
 }
 retryServers = () => { if (!servers.length) loadServers(); };
-await loadServers();
-renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route();
+if (gated) route(); else { await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
 statTimer = setInterval(async () => {
+  if (gated) return;
   if (LIVE) {
     const s = await api.state().catch(() => null);
     if (s) {
@@ -540,9 +596,10 @@ statTimer = setInterval(async () => {
   paintStats();
 }, 1000);
 setInterval(() => {
+  if (gated) return;
   renderToday(); renderBlocked();
   if (!$('#view-revenue').hidden) renderRevenue();
   if (!$('#view-earn').hidden) renderEarn();
 }, LIVE ? 10_000 : 2000);
-if (SET.auto && conn.state === 'off' && !LIVE) power.click();
+if (SET.auto && conn.state === 'off' && !LIVE && !gated) power.click();
 if ('serviceWorker' in navigator && !LIVE && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
