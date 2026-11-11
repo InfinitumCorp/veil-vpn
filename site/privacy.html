@@ -12,16 +12,18 @@
 <meta property="og:type" content="website"><meta property="og:site_name" content="VEIL</>™ VPN"><meta property="og:title" content="VEIL&amp;lt;/&amp;gt;™ VPN privacy policy"><meta property="og:description" content="What VEIL&lt;/&gt;™ VPN collects, what it never collects, and why."><meta property="og:url" content="https://infinitumveilvpn.app/privacy">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/veil.css">
+<link rel="stylesheet" href="/i18n/i18n.css">
+<script type="module" src="/i18n/start.js"></script>
 <style id="cid-style">.cid-slot{display:inline-flex;align-items:center;margin-left:12px}@media (max-width:720px){.cid-slot .cid-who{display:none}}</style>
 </head>
 <body class="">
-<header class="topbar"><a class="brand" href="/">VEIL&lt;/&gt;<sup>™</sup><span class="brand-vpn">VPN</span></a><span class="spacer"></span>
+<header class="topbar"><a class="brand" href="/">V | VPN<sup>™</sup></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden><a class="menu-app" role="menuitem" href="https://infinitumveil.app/" rel="noreferrer"><span class="menu-app-name">VEIL&lt;/&gt;™ browser</span><span class="menu-app-summary">Tor-first secure browser</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/architect" rel="noreferrer"><span class="menu-app-name">:\ARCHITCT\™</span><span class="menu-app-summary">Turn an idea into finished work</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/cumulus-exchange" rel="noreferrer"><span class="menu-app-name">Cumulus://Cloud™</span><span class="menu-app-summary">AI cloud, storage and data exchange</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/fabric" rel="noreferrer"><span class="menu-app-name">FABRIC™</span><span class="menu-app-summary">Secure communications</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/firm#wallet" rel="noreferrer"><span class="menu-app-name">FIRM Wallet™</span><span class="menu-app-summary">Token, wallet and exchange</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/metatron" rel="noreferrer"><span class="menu-app-name">METATRON¹⁰⁰™</span><span class="menu-app-summary">Consumer command suite</span></a><a class="menu-app" role="menuitem" href="https://infinitumcorporation.ai/products/scalus" rel="noreferrer"><span class="menu-app-name">SCALVS.ai™</span><span class="menu-app-summary">AI workforce platform</span></a><a class="menu-app" role="menuitem" href="https://app.infinitumcorporation.ai/" rel="noreferrer"><span class="menu-app-name">All Infinitum apps</span><span class="menu-app-summary">Every app and download</span></a></div></div>
 <a class="nav-link" href="/#get">Download</a></nav><span class="cid-slot" data-cumulus-id data-label="Sign in"></span></header>
 <main id="main" class="doc"><h1>Privacy policy</h1>
 <p class="quiet">Applies to the VEIL&lt;/&gt;™ VPN Android app, the Chrome, Edge and Firefox extensions, and VEIL servers. It adds to the <a href="https://infinitumcorporation.ai/privacy-policy">Infinitum Corporation privacy policy</a>. Last updated November 9, 2026.</p>
-<section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You do not create an account.</p></section>
+<section class="legal-part"><h2><span>01</span>The short version</h2><p>VEIL is a VPN. We do not record the websites you visit, the apps you use, your DNS queries, or the contents of your traffic. We do not store your IP address. You sign in with your Cumulus ID, Infinitum's one sign-in; VEIL keeps only a keyed hash of it, never your name or email.</p></section>
 <section class="legal-part"><h2><span>02</span>What we never collect</h2><ul>
 <li>Websites, domains, URLs or DNS queries.</li>
 <li>Traffic contents or connection logs (when you connected, from where, to where).</li>
@@ -29,7 +31,7 @@
 <li>Your name, email, phone number, contacts, location or files.</li>
 </ul><p>Our servers keep their system logs in memory only, so they are gone after a restart.</p></section>
 <section class="legal-part"><h2><span>03</span>What we store, and why</h2><ul>
-<li><strong>An anonymous session.</strong> A random ID and key, created by the app, so the app can connect and count your rewards.</li>
+<li><strong>A session tied to your Cumulus ID.</strong> A random ID and key for each device you sign in on, so the app can connect and count your rewards. With it we store a keyed hash of your Cumulus ID (not the ID, name or email), so your devices share one reward balance and one wallet. Cumulus ID itself is run by Infinitum under the <a href="https://infinitumcorporation.ai/privacy-policy">Infinitum Corporation privacy policy</a>.</li>
 <li><strong>A hashed device ID.</strong> The app sends a device identifier; we store only a keyed hash of it. It lets us allow one earning account per device (fraud prevention). We also note the platform (Android, Chrome or Firefox), and we flag a session for review if it comes from an emulator, a rooted phone, or more than one device.</li>
 <li><strong>A network tag, for 3 days.</strong> To stop many accounts earning from one connection, we store a keyed hash of the first part of your network address (the /24 or /48 block, not your address), with a key that changes every day. It is deleted after 3 days.</li>
 <li><strong>Reward counts.</strong> The number of minutes you were connected each day, and how many ads were viewed or clicked in your session (counts only; no ad or site details).</li>
@@ -49,7 +51,7 @@
 <nav class="apps" aria-label="Infinitum apps"><a class="app-link" href="https://infinitumveil.app/" target="_blank" rel="noopener noreferrer">VEIL&lt;/&gt;™ browser</a><a class="app-link" href="https://rchtch.app/" target="_blank" rel="noopener noreferrer">:\ARCHITCT\™</a><a class="app-link" href="https://scalvs.app/" target="_blank" rel="noopener noreferrer">SCALVS.ai™</a><a class="app-link" href="https://infinitumfabric.app/" target="_blank" rel="noopener noreferrer">FABRIC++™</a></nav>
 <footer><span>AI-powered. Blockchain-governed™.</span><span class="footer-right"><a class="footer-link" href="/privacy">Privacy</a><a class="footer-link" href="mailto:info@theinfinitumcorporation.com">Contact</a><span class="quiet">© 2026 Infinitum Corporation</span></span></footer>
 <script src="/veil.js" defer></script>
-<!-- Sign in with Cumulus://ID (copy of mail.cumuluscloud.app/id/button.js) -->
+<!-- Sign in with Cumulus://ID (copy of https://id.cumuluscloud.app/id/button.js) -->
 <script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
 </body>
 </html>

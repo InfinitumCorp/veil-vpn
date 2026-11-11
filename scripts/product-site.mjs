@@ -2,7 +2,7 @@
 // (white, quiet, Helvetica Neue, one coloured dot, top bar with Apps, centred column, pill links, footer).
 // No inline scripts or styles in the pages: site/veil.css and site/veil.js. Re-run after editing the text here
 // or site/privacy-body.html:  node scripts/product-site.mjs
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { MAX_DAY, RATE_PER_MIN, TIERS } from '../veil-vpn/economics.js';
 
@@ -10,6 +10,8 @@ const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'site');
 const ORIGIN = 'https://infinitumveilvpn.app';
 const MAIN = 'https://infinitumcorporation.ai';
+// Cumulus ID issuer for the site's sign-in button. Set CID_ISSUER to a mirror (e.g. one reachable from Russia).
+const CID_ISSUER = (process.env.CID_ISSUER || '').replace(/\/+$/, '').replace(/["<>&]/g, '');
 const HUB = 'https://app.infinitumcorporation.ai';
 const attr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -27,7 +29,7 @@ const APPS = [
   [`${MAIN}/products/scalus`, 'SCALVS.ai™', 'AI workforce platform'],
   [`${HUB}/`, 'All Infinitum apps', 'Every app and download'],
 ];
-const topbar = `<header class="topbar"><a class="brand" href="/">VEIL&lt;/&gt;<sup>™</sup><span class="brand-vpn">VPN</span></a><span class="spacer"></span>
+const topbar = `<header class="topbar"><a class="brand" href="/">V | VPN<sup>™</sup></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden>${APPS.map(([h, n, s]) => `<a class="menu-app" role="menuitem" href="${h}" rel="noreferrer"><span class="menu-app-name">${n}</span><span class="menu-app-summary">${s}</span></a>`).join('')}</div></div>
 <a class="nav-link" href="/#get">Download</a></nav><span class="cid-slot" data-cumulus-id data-label="Sign in"></span></header>`;
@@ -49,6 +51,8 @@ function page({ route = '/', title, desc, body, cls = '', robots = 'index, follo
 <meta property="og:type" content="website"><meta property="og:site_name" content="VEIL</>™ VPN"><meta property="og:title" content="${attr(title)}"><meta property="og:description" content="${attr(desc)}"><meta property="og:url" content="${ORIGIN}${route}">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/veil.css">
+<link rel="stylesheet" href="/i18n/i18n.css">
+<script type="module" src="/i18n/start.js"></script>
 <style id="cid-style">.cid-slot{display:inline-flex;align-items:center;margin-left:12px}@media (max-width:720px){.cid-slot .cid-who{display:none}}</style>
 </head>
 <body class="${cls}">
@@ -57,8 +61,8 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
-<!-- Sign in with Cumulus://ID (copy of mail.cumuluscloud.app/id/button.js) -->
-<script src="/cumulus-id.js" data-client="veil-vpn" defer></script>
+<!-- Sign in with Cumulus://ID (copy of https://id.cumuluscloud.app/id/button.js) -->
+<script src="/cumulus-id.js" data-client="veil-vpn"${CID_ISSUER ? ` data-issuer="${CID_ISSUER}"` : ''} defer></script>
 </body>
 </html>
 `;
@@ -71,7 +75,7 @@ const facts = (items) => `<ul class="facts">${items.map(([h, p]) => `<li><h3>${h
 const PANELS = [
   ['how', 'How it works', facts([
     ['Every app, one tunnel', 'On Android, all of your phone\'s traffic is encrypted. In Chrome and Edge, the extension routes the browser.'],
-    ['No account', 'No email and no sign-up. The app gets an anonymous session.'],
+    ['Cumulus ID sign-in', 'Sign in with your Cumulus ID, or create one in the app. One balance across your devices; VEIL keeps only a hash of the ID.'],
     ['Honest status', '"Protected" appears only after the server has answered through the tunnel, and is checked again every minute.'],
     ['Kill switch', 'If the server drops, traffic is held instead of leaking, and VEIL reconnects on its own.'],
     ['Tor over VPN', 'One switch sends your traffic from our server into the Tor network, .onion sites included.'],
@@ -95,9 +99,9 @@ const PANELS = [
   ['cant-see', 'What VEIL can\'t see', facts([
     ['The sites and apps you use', 'No traffic logs and no DNS logs. Blocked trackers are counted, never named.'],
     ['What you send', 'Encrypted from your device to our server. HTTPS sites stay encrypted all the way.'],
-    ['Who you are', 'No account, email or phone number. Your IP address is never written to disk.'],
+    ['Who you are', 'Only a hash of your Cumulus ID: no name, email or phone number. Your IP address is never written to disk.'],
     ['Where Tor takes you', 'With Tor over VPN on, our server sees only that you use Tor.'],
-  ]) + '<p>What we do keep: an anonymous session, minutes connected, ad view counts, a hashed device ID and, if you link one, a wallet address. <a href="/privacy">Privacy policy</a></p>'],
+  ]) + '<p>What we do keep: a session tied to a hash of your Cumulus ID, minutes connected, ad view counts, a hashed device ID and, if you link one, a wallet address. <a href="/privacy">Privacy policy</a></p>'],
   ['share', 'Revenue share', `<table class="tiers"><thead><tr><th scope="col">Tier</th><th scope="col">Members</th><th scope="col">Community</th><th scope="col">Network</th><th scope="col">Boost</th></tr></thead><tbody>`
     + TIERS.map(([name, from, c, n, , , , boost]) => `<tr><th scope="row">${name}</th><td>${people(from)}</td><td><strong>${c}%</strong></td><td>${n}%</td><td>${boost > 1 ? `${boost}×` : '—'}</td></tr>`).join('')
     + `</tbody></table><p>Each day's ad revenue is split by the tier the network is in; the rest goes to ecosystem, liquidity (10%) and team (5%). The community share is divided among members by the minutes they were connected that day. Larger tiers add a treasury boost in $VEIL, never extra cash.</p>`],
@@ -107,7 +111,7 @@ const PANELS = [
 const home = `<main id="main">
 <h1 class="headline">Private. Free. Shared.</h1>
 <p class="lead">A free VPN paid for by privacy-safe ads. Half or more of the ad revenue goes back to the people who use it.</p>
-<div class="workspace-strip"><span class="workspace" title="No account, no logs, nothing kept">Free forever</span></div>
+<div class="workspace-strip"><span class="workspace" title="No logs, nothing kept">Free forever</span></div>
 <p class="status">WireGuard · IKEv2 · OpenVPN · No logs · Tor over VPN</p>
 <nav class="bookmarks" id="get" aria-label="Get VEIL VPN">
 <a class="bookmark" href="/download/veil-vpn.apk" download>VEIL VPN for Android</a>
@@ -141,9 +145,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 .topbar { display: flex; align-items: center; gap: 0 12px; min-height: 52px; padding: env(safe-area-inset-top, 0px) 14px 0; border-bottom: 1px solid var(--rule); }
-.brand { display: inline-flex; align-items: center; height: 52px; font-size: 19px; letter-spacing: -0.04em; text-decoration: none; white-space: nowrap; }
-.brand sup { font-size: .5em; letter-spacing: 0; margin-left: 1px; align-self: flex-start; margin-top: 15px; }
-.brand-vpn { margin-left: 8px; font-size: 12px; letter-spacing: .08em; color: var(--ink-quiet); }
+/* Logo: text wordmark in the brand font, weight 500, normal tracking (Infinitum brand.css .wordmark). */
+.brand { display: inline-flex; align-items: center; height: 52px; font-size: 20px; font-weight: 500; letter-spacing: normal; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.brand sup { font-size: .38em; font-weight: 400; letter-spacing: 0; margin-left: .08em; align-self: flex-start; margin-top: 16px; }
 .spacer { flex: 1; }
 .top-links { display: flex; align-items: center; gap: 22px; }
 .nav-link { position: relative; padding: 8px 0; font-size: 13px; color: var(--ink); text-decoration: none; white-space: nowrap; background: none; border: 0; }
@@ -221,6 +225,9 @@ const js = `// Apps menu and the panels under the downloads (one open at a time;
 
 // ---- write ----
 mkdirSync(out, { recursive: true });
+// Interface language (@infinitum/i18n), the same catalogs as the app (veil-vpn/i18n).
+mkdirSync(path.join(out, 'i18n'), { recursive: true });
+for (const f of ['i18n.js', 'i18n.css', 'start.js', 'catalogs.js']) copyFileSync(path.join(root, 'veil-vpn/i18n', f), path.join(out, 'i18n', f));
 writeFileSync(path.join(out, 'veil.css'), css);
 writeFileSync(path.join(out, 'veil.js'), js);
 writeFileSync(path.join(out, 'index.html'), page({ title: 'VEIL&lt;/&gt;™ VPN: free, private, shared', desc, body: home }));

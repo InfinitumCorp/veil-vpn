@@ -28,7 +28,8 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke
 
 /* header */
 .top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:4vw;padding:14px max(5vw,calc((100vw - 1040px)/2 + 5vw));background:var(--paper);border-bottom:1px solid var(--line)}
-.brand{text-decoration:none;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+/* Logo: text wordmark in the brand font, weight 500, normal tracking (Infinitum brand.css .wordmark). */
+.brand{text-decoration:none;font-size:20px;font-weight:500;letter-spacing:normal;color:var(--ink);white-space:nowrap}
 .tabs{display:flex;gap:28px;margin-left:auto;white-space:nowrap}
 .tabs a{position:relative;font-size:13px;text-decoration:none;color:var(--muted);padding:8px 0}
 .tabs a::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:2px;background:var(--ink);transform:scaleX(0);transition:transform .25s}
@@ -225,4 +226,8 @@ html.ext .settings li.wallet-row{flex-direction:column;align-items:stretch}
 html.ext .row{margin-top:40px}
 html.ext .toast{bottom:80px}
 .location{text-align:left}.location #loc-name{flex:1}
-.brand .tm{font-size:.6em;vertical-align:super;line-height:0;margin-left:1px}
+.brand .tm{font-size:.38em;vertical-align:super;line-height:0;margin-left:.08em;letter-spacing:0;font-weight:400}
+/* Cumulus ID sign-in: the same type and buttons as the rest of the app. */
+.signin-lead{color:var(--muted);font-size:15px;line-height:1.5;max-width:52ch;margin:0 0 28px}
+html.signed-out .tabs,html.signed-out nav.bottom{visibility:hidden}
+.account-row small{overflow-wrap:anywhere}

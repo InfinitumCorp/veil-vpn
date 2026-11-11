@@ -11,9 +11,9 @@ export default defineConfig({
     domains: ["api.infinitumveilvpn.app"],
     env: {
       NODE_ENV: bindings.text("production"),
-      // VPN servers: deploy/api/nodes.json, bundled into the Worker (src/worker.js). Each entry is
-      // what node/provision.sh prints; the OpenVPN CA and tls-crypt key are public client material.
-      // Not a var: Cloudflare caps a text var at 5.1 kB, and ten servers take 18 kB.
+      // VPN servers: deploy/api/nodes.json is bundled into the Worker by src/worker.js (a text var
+      // is capped at 5.1 kB, too small for more than two servers). Each entry is what
+      // node/provision.sh prints; the OpenVPN CA and tls-crypt key are public client material.
       TOKEN_SECRET: bindings.secret(),
       AGENT_SECRET: bindings.secret(),
       ADMIN_KEY: bindings.secret(),

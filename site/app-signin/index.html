@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signing in · VEIL&lt;/&gt;™ VPN</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/veil.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/">VEIL&lt;/&gt;<sup>™</sup><span class="brand-vpn">VPN</span></a><span class="spacer"></span></header>
+<!-- Cumulus ID sends the VEIL VPN apps back here after sign-in (redirect_uri ...?to=<app>).
+     Android: this page opens the app (an App Link opens the app before this page loads, when verified).
+     Browser extension: the extension reads the code from this tab's address and closes it. -->
+<main id="main">
+  <h1 class="headline" id="msg">Signing in.</h1>
+  <p class="lead" id="sub">Returning you to VEIL&lt;/&gt;™ VPN.</p>
+  <p><a class="nav-link" id="open" href="/" hidden>Open VEIL VPN</a></p>
+</main>
+<script src="app-signin.js" defer></script>
+</body>
+</html>
