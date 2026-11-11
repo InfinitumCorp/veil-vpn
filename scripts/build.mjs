@@ -8,6 +8,10 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const p = (...x) => path.join(root, ...x);
 const CONTROL_URL = (process.env.CONTROL_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
+// Cumulus ID sign-in. CID_ISSUER may point at a mirror reachable from Russia without a VPN; CID_RETURN
+// is the page Cumulus ID sends the extension back to (an origin registered for the veil-vpn client).
+const CID_ISSUER = (process.env.CID_ISSUER || 'https://id.cumuluscloud.app').replace(/\/+$/, '');
+const CID_RETURN = process.env.CID_RETURN || 'https://infinitumveilvpn.app/app-signin/?to=ext';
 
 // 1. Shared reward rules into the web app (generated copy, edit shared/economics.js).
 const econ = readFileSync(p('shared/economics.js'), 'utf8');
@@ -25,7 +29,8 @@ for (const f of ['manifest.json', 'background.js']) cpSync(p('extension', f), pa
 for (const f of ['app.css', 'app.js', 'economics.js', 'icon.svg', 'firm-suite.js', 'firm-suite.css']) cpSync(p('veil-vpn', f), path.join(out, f));
 copyI18n(out);
 cpSync(p('extension/_locales'), path.join(out, '_locales'), { recursive: true });
-writeFileSync(path.join(out, 'config.js'), `export const CONTROL_URL = ${JSON.stringify(CONTROL_URL)};\n`);
+writeFileSync(path.join(out, 'config.js'), `export const CONTROL_URL = ${JSON.stringify(CONTROL_URL)};\n`
+  + `export const CID_ISSUER = ${JSON.stringify(CID_ISSUER)};\nexport const CID_RETURN = ${JSON.stringify(CID_RETURN)};\n`);
 const html = readFileSync(p('veil-vpn/index.html'), 'utf8')
   .replace(/<link rel="manifest"[^>]*>\n?/, '')
   .replace(/<meta name="apple-[^>]*>\n?/g, '');
@@ -99,4 +104,4 @@ if (!/^<!doctype/i.test(index)) writeFileSync(path.join(siteOut, 'index.html'), 
   + '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n'
   + index + '\n</body>\n</html>\n');
 
-console.log(`Built dist/extension, dist/firefox (control: ${CONTROL_URL}), dist/site and android/app/src/main/assets/www`);
+console.log(`Built dist/extension, dist/firefox (control: ${CONTROL_URL}, Cumulus ID: ${CID_ISSUER}), dist/site and android/app/src/main/assets/www`);

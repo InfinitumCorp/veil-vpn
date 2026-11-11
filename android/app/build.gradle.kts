@@ -6,6 +6,10 @@ plugins {
 import java.util.Properties
 
 val controlUrl = (findProperty("veilControlUrl") as String?) ?: "http://10.0.2.2:8787"
+// Cumulus ID sign-in. -PveilCidIssuer=https://... points the app at a mirror (e.g. one reachable from
+// Russia without a VPN). The return page must be on an origin registered for the "veil-vpn" client.
+val cidIssuer = ((findProperty("veilCidIssuer") as String?) ?: "https://id.cumuluscloud.app").trimEnd('/')
+val cidReturnBase = (findProperty("veilCidReturn") as String?) ?: "https://infinitumveilvpn.app/app-signin/"
 
 // Release signing. Secrets never live in this file: they come from android/keystore.properties
 // (kept out of version control) or, on a build server, from environment variables.
@@ -32,6 +36,7 @@ android {
         versionCode = (findProperty("veilVersionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("veilVersionName") as String?) ?: "0.1.0"
         buildConfigField("String", "CONTROL_URL", "\"$controlUrl\"")
+        buildConfigField("String", "CID_ISSUER", "\"$cidIssuer\"")
     }
 
     buildFeatures { buildConfig = true }
@@ -49,8 +54,15 @@ android {
         // Debug builds install next to the release app (own package, own name).
         debug {
             applicationIdSuffix = ".debug"
+            // Its own return link, so a debug build never catches the release app's sign-in.
+            manifestPlaceholders["cidScheme"] = "veilvpn-debug"
+            buildConfigField("String", "CID_SCHEME", "\"veilvpn-debug\"")
+            buildConfigField("String", "CID_RETURN", "\"${cidReturnBase}?to=veilvpn-debug\"")
         }
         release {
+            manifestPlaceholders["cidScheme"] = "veilvpn"
+            buildConfigField("String", "CID_SCHEME", "\"veilvpn\"")
+            buildConfigField("String", "CID_RETURN", "\"${cidReturnBase}?to=veilvpn\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -79,5 +91,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.1")
     implementation("androidx.webkit:webkit:1.14.0")
+    implementation("androidx.browser:browser:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }

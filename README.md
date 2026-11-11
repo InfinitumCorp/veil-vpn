@@ -17,7 +17,7 @@ Ad revenue is pooled with the community and paid out in $VEIL.
 | `android/` | Android app (Kotlin): WireGuard or IKEv2 (Android 11+) for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
 | `veil-vpn/` | The shared interface. In a normal web page it runs as a simulated demo; inside the extension it runs live | Working |
 | `shared/` | Reward and revenue-share rules (`economics.js`) and token signing (`token.js`) | Single source of truth |
-| `test/` | End-to-end tests (control + node, real sockets) plus VLESS / Shadowsocks link tests and a local Xray smoke test | 38 passing; plus 15 Worker tests in `deploy/api` |
+| `test/` | End-to-end tests (control + node, real sockets), Cumulus ID sign-in, VLESS / Shadowsocks link tests and a local Xray smoke test | 44 tests (2 need Linux and Xray); plus 16 Worker tests in `deploy/api` |
 
 Requires Node.js 22.13 or newer. No third-party packages.
 
@@ -210,11 +210,38 @@ On by default for everyone; Settings → "Block trackers" turns it off (the app 
   reboot and app updates). Settings → "Unsafe network alerts" turns it off.
 - Everything is decided on the phone. The network name is never read and nothing about the network is sent.
 
+## Sign in with Cumulus ID
+
+The Android app and the browser extensions sign people in with Cumulus ID (Infinitum's one sign-in,
+`id.cumuluscloud.app`). There is no VEIL password, PIN or anonymous account. Until someone signs in, the
+app shows only the sign-in screen: **Sign in with Cumulus ID** and **Create a Cumulus ID** (the same
+authorize request with `prompt=create`; Cumulus ID's page offers sign-up and comes back signed in).
+
+- **Flow.** OAuth 2.0 code + PKCE, client `veil-vpn`. The app opens `/api/id/authorize` in a Custom Tab
+  (Android) or a new tab (extension). Cumulus ID returns to `https://infinitumveilvpn.app/app-signin/?to=<app>`
+  (`site/app-signin/`). Android: that URL is an App Link (verified by `/.well-known/assetlinks.json` on the site,
+  once the release key's fingerprint is added there), and the page also opens `veilvpn://cid?code&state`
+  (`veilvpn-debug://` for debug builds). Extension: the background worker sees the tab reach that page and
+  closes it. The app trades the code at `/api/id/token`, then sends the access token once to
+  `POST /v1/session { cid_token }`.
+- **Server.** `core.js` asks the issuer's `/api/id/userinfo` who the token belongs to and stores only
+  `sessions.account`, an HMAC of the CID. Each device gets its own session token; all sessions with one account
+  share the balance, today's minutes, the wallet, the daily limit and the epoch cap. Production
+  (`CID_REQUIRED`, default on when `NODE_ENV=production`) refuses sessions without a Cumulus ID, and an older
+  unsigned session gets `401 sign_in_required`, which brings the app back to the sign-in screen.
+- **Russia / mirrors.** The issuer is configurable everywhere: `CID_ISSUER` on the control server and for
+  `scripts/build.mjs` (extension) and `scripts/product-site.mjs` (site button, `data-issuer`), and
+  `-PveilCidIssuer=https://...` for Android. Point all of them at the same mirror. `GET /v1/cid` reports the
+  issuer the server uses. The return page origin must be registered for `veil-vpn` in Cumulus ID's client list.
+- **Site.** The landing page header keeps the `site/cumulus-id.js` button, now with **Create a Cumulus ID**
+  next to sign-in (`window.CumulusID.create()`).
+- **Web demo.** `veil-vpn/` in a plain web page is a simulation with nothing to sign in to, so it is not gated.
+
 ## What Infinitum can't see
 
 Shown in app Settings and on the landing page (`#cant-see`), and kept in line with `site/privacy.html`:
 sites and apps used (no traffic or DNS logs; blocked trackers only counted), traffic contents, identity
-(no account; IP never written to disk), the user's Wi-Fi, and where Tor traffic goes. If you change what the
+(a keyed hash of the Cumulus ID only, no name or email; IP never written to disk), the user's Wi-Fi, and where Tor traffic goes. If you change what the
 servers store, update all three. The app's "Privacy policy" and invite links point to https://infinitumveilvpn.app.
 
 ## Tor over VPN
@@ -304,6 +331,8 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   bypasses it for `api.infinitumveilvpn.app` only. The landing page stays gated until it is made public.
 - **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`.
 - **Vars:** `NODES` is the server list (same JSON as `control/nodes.json`), empty until a VPN server exists.
+  `CID_ISSUER` (default `https://id.cumuluscloud.app`) and `CID_REQUIRED` (default `1` in production): see
+  *Sign in with Cumulus ID*. Apply `supabase/migrations/20261111_veil_cid_account.sql` before deploying.
 - **Cron:** hourly purge of network tags older than 3 days.
 - **Memory-only state** (node health, rate limits, ad-event dedupe) is per Worker isolate. The fraud caps that
   pay out money are enforced in the database, so this only loosens the short dedupe window.

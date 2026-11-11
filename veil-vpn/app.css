@@ -226,3 +226,7 @@ html.ext .row{margin-top:40px}
 html.ext .toast{bottom:80px}
 .location{text-align:left}.location #loc-name{flex:1}
 .brand .tm{font-size:.6em;vertical-align:super;line-height:0;margin-left:1px}
+/* Cumulus ID sign-in: the same type and buttons as the rest of the app. */
+.signin-lead{color:var(--muted);font-size:15px;line-height:1.5;max-width:52ch;margin:0 0 28px}
+html.signed-out .tabs,html.signed-out nav.bottom{visibility:hidden}
+.account-row small{overflow-wrap:anywhere}
