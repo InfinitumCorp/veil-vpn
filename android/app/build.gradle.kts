@@ -86,6 +86,7 @@ tasks.matching { it.name.matches(Regex("(assemble|bundle)Release")) }.configureE
 }
 
 dependencies {
+    implementation("com.amplitude:analytics-android:1.37.1")
     implementation("com.wireguard.android:tunnel:1.0.20230706")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
