@@ -1,5 +1,6 @@
 // Builds dist/extension and syncs shared code into the web app.
-//   CONTROL_URL=https://api.vpn.example.com node scripts/build.mjs
+//   node scripts/build.mjs                                    (live API, https://api.infinitumveilvpn.app)
+//   CONTROL_URL=http://127.0.0.1:8787 node scripts/build.mjs  (local control/server.js)
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import { pngIcon } from './icon.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const p = (...x) => path.join(root, ...x);
-const CONTROL_URL = (process.env.CONTROL_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
+const CONTROL_URL = (process.env.CONTROL_URL || 'https://api.infinitumveilvpn.app').replace(/\/$/, '');
 // Cumulus ID sign-in. CID_ISSUER may point at a mirror reachable from Russia without a VPN; CID_RETURN
 // is the page Cumulus ID sends the extension back to (an origin registered for the veil-vpn client).
 const CID_ISSUER = (process.env.CID_ISSUER || 'https://id.cumuluscloud.app').replace(/\/+$/, '');

@@ -28,7 +28,8 @@ cp .env.example .env        # then replace the three secrets
 npm test                    # 38 tests, including a local Xray smoke test
 npm run node                # terminal 1: VPN node on :9100, agent on :9101
 npm run control             # terminal 2: control server on :8787
-npm run build               # builds dist/extension and dist/firefox, pointing at http://127.0.0.1:8787
+CONTROL_URL=http://127.0.0.1:8787 npm run build   # dist/extension and dist/firefox against this local control server
+                                                  # (plain `npm run build` points at the live API)
 ```
 
 Load the extension: open `chrome://extensions` (or `edge://extensions`), turn on Developer mode,
@@ -177,8 +178,9 @@ dl.google.com is blocked) or `-PmavenRelay=http://127.0.0.1:8899` (a local relay
 curl, when Java TLS downloads keep getting cut). With the relay, also pass
 `-Dorg.gradle.internal.http.socketTimeout=600000`.
 
-Or open the `android/` folder in Android Studio and press Run. The debug build talks to
-`http://10.0.2.2:8787`, which is your PC as seen from the Android emulator.
+Or open the `android/` folder in Android Studio and press Run. Every build talks to the live API,
+`https://api.infinitumveilvpn.app`. To use a local control server from the emulator instead, build with
+`-PveilControlUrl=http://10.0.2.2:8787` (10.0.2.2 is your PC as seen from the emulator).
 
 Testing a full connection needs a real WireGuard node (a Linux server from `node/provision.sh`).
 Without one, the app correctly stays on **Connecting…** because no handshake happens.
@@ -339,8 +341,7 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 - **Tests:** `cd deploy/api && npm install && npm test` runs the Worker against real Postgres (PGlite) with the
   migration, including the postgres.js driver over the wire.
 - **Deploy:** `cd deploy/api && npx cf deploy` (creates the `api.infinitumveilvpn.app` DNS record), then set
-  the secrets, then build the apps with `-PveilControlUrl=https://api.infinitumveilvpn.app` /
-  `CONTROL_URL=https://api.infinitumveilvpn.app`.
+  the secrets. The apps point at `https://api.infinitumveilvpn.app` by default.
 
 ## Going to production
 
