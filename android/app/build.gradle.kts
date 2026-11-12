@@ -106,4 +106,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("com.google.android.gms:play-services-ads:24.4.0")
     implementation("com.google.android.ump:user-messaging-platform:3.2.0")
+    // Amplitude: app opens and sessions only (see Analytics.kt).
+    implementation("com.amplitude:analytics-android:1.37.1")
 }
