@@ -24,21 +24,18 @@
     <a href="#settings" data-nav="settings">Settings</a>
   </nav>
   <span class="proto-note" role="note">Demo</span>
+  <!-- Signed out: a Sign in link in the top-right corner; the app opens on Connect, not on a sign-in page -->
+  <div class="signin-wrap">
+    <button class="signin-link" id="signin-link" type="button" aria-expanded="false" aria-controls="signin-pop">Sign in</button>
+    <div class="signin-pop" id="signin-pop" role="dialog" aria-label="Sign in with Cumulus ID" hidden>
+      <button class="primary" id="cid-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
+      <button class="ghost" id="cid-create" type="button">Create a Cumulus ID</button>
+      <p class="fine" id="cid-status" role="status" aria-live="polite"></p>
+    </div>
+  </div>
 </header>
 
 <main id="main">
-  <!-- SIGN IN (app and extension: shown until the person signs in with Cumulus ID) -->
-  <section class="view signin" id="view-signin" aria-labelledby="h-signin" hidden>
-    <div class="context"><span>Cumulus ID</span><span>Infinitum's one sign-in</span></div>
-    <h2 id="h-signin">Sign in. <span class="grey">Stay private.</span></h2>
-    <p class="signin-lead">VEIL uses your Cumulus ID. Your $VEIL balance and wallet follow you across your phone and browsers. VEIL keeps only a hash of the ID, never your name or email, and never the sites you visit.</p>
-    <div class="actions">
-      <button class="primary" id="cid-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
-      <button class="ghost" id="cid-create" type="button">Create a Cumulus ID</button>
-    </div>
-    <p class="fine" id="cid-status" role="status" aria-live="polite"></p>
-  </section>
-
   <!-- CONNECT -->
   <section class="view" id="view-connect" aria-labelledby="h-connect">
     <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>

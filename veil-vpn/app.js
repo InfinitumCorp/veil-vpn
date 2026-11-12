@@ -193,8 +193,9 @@ const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 
 // ---------------------------------------------------------------- Cumulus ID
 // The app and the extension sign in with Cumulus ID (id.cumuluscloud.app, or the mirror the build
-// names). Until then only the sign-in screen shows. "Create a Cumulus ID" opens the same sign-in with
-// the issuer's sign-up page first; either way the person comes back here signed in.
+// names). Signed out, the app still opens on Connect, with a "Sign in" link in the top-right corner
+// that opens the two choices. "Create a Cumulus ID" opens the same sign-in with the issuer's sign-up
+// page first; either way the person comes back here signed in.
 let account = { signedIn: !LIVE };
 if (LIVE) { try { account = await api.account(); } catch { account = { signedIn: false }; } }
 let gated = !account.signedIn;
@@ -205,6 +206,15 @@ function signedOut() {
   document.documentElement.classList.add('signed-out');
   paintAccount(); route();
 }
+const signinLink = $('#signin-link'), signinPop = $('#signin-pop');
+function openSignIn(open = true) {
+  signinPop.hidden = !open;
+  signinLink.setAttribute('aria-expanded', String(open));
+  if (open) $('#cid-signin').focus();
+}
+signinLink.addEventListener('click', (e) => { e.stopPropagation(); openSignIn(signinPop.hidden); });
+document.addEventListener('click', (e) => { if (!signinPop.hidden && !signinPop.contains(e.target)) openSignIn(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !signinPop.hidden) { openSignIn(false); signinLink.focus(); } });
 function paintAccount() {
   const p = account.signedIn && !account.demo ? account.profile || {} : null;
   $('#account-row').hidden = !p;
@@ -239,15 +249,14 @@ paintAccount();
 // ---------------------------------------------------------------- navigation
 const VIEWS = ['connect', 'servers', 'earn', 'revenue', 'settings'];
 const route = () => {
-  $('#view-signin').hidden = !gated;
-  if (gated) { VIEWS.forEach((n) => { $(`#view-${n}`).hidden = true; }); return; }
+  // Signed out: only Connect shows (the other screens need an account); the Sign in link is top right.
   const h = location.hash.slice(1) === 'community' ? 'revenue' : location.hash.slice(1);
-  const v = VIEWS.includes(h) ? h : 'connect';
+  const v = gated ? 'connect' : VIEWS.includes(h) ? h : 'connect';
   VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
   $$('[data-nav]').forEach((a) => (a.dataset.nav === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   if (v === 'revenue') renderRevenue();
   if (v === 'earn') renderEarn();
-  if (v === 'servers' || v === 'connect') retryServers();
+  if (!gated && (v === 'servers' || v === 'connect')) retryServers();
   window.scrollTo(0, 0);
 };
 let retryServers = () => {};   // set once the server list loader exists (below)
@@ -309,7 +318,8 @@ async function renderToday() {
   return m;
 }
 let attempt = 0;   // a cancelled connect must not repaint when its answer arrives late
-power.addEventListener('click', async () => {
+power.addEventListener('click', async (e) => {
+  if (gated) { e.stopPropagation(); openSignIn(); return; }   // connecting needs a Cumulus ID
   const my = ++attempt;
   try {
     // Connected, reconnecting or still waiting for the first handshake: the button stops the tunnel.
@@ -321,7 +331,7 @@ power.addEventListener('click', async () => {
     loadAd();
   } catch (e) { if (my !== attempt) return; conn = { state: 'off' }; paintConn(); toast(errText(e)); }
 });
-$('#location-btn').addEventListener('click', () => { location.hash = 'servers'; });
+$('#location-btn').addEventListener('click', (e) => { if (gated) { e.stopPropagation(); openSignIn(); return; } location.hash = 'servers'; });
 function renderLoc() {
   const s = srv(selected); if (!s) return;
   $('#loc-cc').textContent = cc(s.flag); $('#loc-name').textContent = `${s.city}, ${s.country}`;
@@ -583,7 +593,7 @@ async function loadServers() {
   } finally { serversBusy = false; }
 }
 retryServers = () => { if (!servers.length) loadServers(); };
-if (gated) route(); else { await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
+if (gated) { paintConn(); route(); } else { await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
 statTimer = setInterval(async () => {
   if (gated) return;
   if (LIVE) {
