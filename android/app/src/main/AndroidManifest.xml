@@ -24,6 +24,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Veil">
 
+        <!-- AdMob: in-app banner only. VEIL never injects ads into the sites people visit. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

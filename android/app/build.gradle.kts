@@ -11,6 +11,14 @@ val controlUrl = (findProperty("veilControlUrl") as String?) ?: "http://10.0.2.2
 val cidIssuer = ((findProperty("veilCidIssuer") as String?) ?: "https://id.cumuluscloud.app").trimEnd('/')
 val cidReturnBase = (findProperty("veilCidReturn") as String?) ?: "https://infinitumveilvpn.app/app-signin/"
 
+// AdMob. Both IDs are public (they ship inside the app). Until Infinitum's own IDs are passed with
+// -PveilAdmobAppId=ca-app-pub-...~... -PveilAdmobBannerId=ca-app-pub-.../..., Google's sample IDs
+// are used, which serve test ads only. A release build refuses the sample IDs.
+val admobTestAppId = "ca-app-pub-3940256099942544~3347511713"
+val admobTestBannerId = "ca-app-pub-3940256099942544/9214589741"
+val admobAppId = (findProperty("veilAdmobAppId") as String?) ?: admobTestAppId
+val admobBannerId = (findProperty("veilAdmobBannerId") as String?) ?: admobTestBannerId
+
 // Release signing. Secrets never live in this file: they come from android/keystore.properties
 // (kept out of version control) or, on a build server, from environment variables.
 //   storeFile=keystore/veil-upload.jks  storePassword=...  keyAlias=veil-upload  keyPassword=...
@@ -37,6 +45,8 @@ android {
         versionName = (findProperty("veilVersionName") as String?) ?: "0.1.0"
         buildConfigField("String", "CONTROL_URL", "\"$controlUrl\"")
         buildConfigField("String", "CID_ISSUER", "\"$cidIssuer\"")
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobBannerId\"")
+        manifestPlaceholders["admobAppId"] = admobAppId
     }
 
     buildFeatures { buildConfig = true }
@@ -82,6 +92,7 @@ tasks.matching { it.name.matches(Regex("(assemble|bundle)Release")) }.configureE
     doFirst {
         check(controlUrl.startsWith("https://")) { "Release builds need -PveilControlUrl=https://... (got $controlUrl)" }
         check(canSign) { "Release builds need a signing key: see android/keystore.properties.example" }
+        check(admobAppId != admobTestAppId && admobBannerId != admobTestBannerId) { "Release builds need Infinitum's AdMob IDs: -PveilAdmobAppId=... -PveilAdmobBannerId=..." }
     }
 }
 
@@ -93,4 +104,6 @@ dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.browser:browser:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("com.google.android.gms:play-services-ads:24.4.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.2.0")
 }

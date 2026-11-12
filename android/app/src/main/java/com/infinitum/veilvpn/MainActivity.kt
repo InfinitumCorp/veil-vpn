@@ -5,7 +5,10 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -31,6 +34,7 @@ import org.json.JSONObject
 /** Hosts the shared VEIL interface from app assets and connects it to the native tunnel. */
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
+    private var ads: Ads? = null
     private var vpnAsk: CompletableDeferred<Boolean>? = null
 
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -84,7 +88,14 @@ class MainActivity : ComponentActivity() {
         ), "VeilAndroid")
 
         // Android 15+ draws edge to edge: keep the interface clear of the status and navigation bars.
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.WHITE); addView(web) }
+        // The AdMob banner sits under the interface and stays collapsed until an ad loads.
+        val adSlot = FrameLayout(this).apply { visibility = View.GONE }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            addView(web, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(adSlot, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(b.left, b.top, b.right, b.bottom)
@@ -101,6 +112,7 @@ class MainActivity : ComponentActivity() {
             override fun handleOnBackPressed() { if (web.canGoBack()) web.goBack() else finish() }
         })
 
+        ads = Ads(this, adSlot).also { it.start() }
         handleSignIn(intent)
         NetworkGuard.register(applicationContext)
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -125,7 +137,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() { ads?.pause(); super.onPause() }
+    override fun onResume() { super.onResume(); ads?.resume() }
+
     override fun onDestroy() {
+        ads?.destroy()
         web.removeJavascriptInterface("VeilAndroid")
         web.destroy()
         super.onDestroy()
