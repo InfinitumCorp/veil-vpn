@@ -215,11 +215,9 @@ On by default for everyone; Settings → "Block trackers" turns it off (the app 
 ## Sign in with Cumulus ID
 
 The Android app and the browser extensions sign people in with Cumulus ID (Infinitum's one sign-in,
-`id.cumuluscloud.app`). There is no VEIL password or PIN. **Signing in is optional: anyone can use VEIL VPN
-without logging in.** With no sign-in, the app and the extension get an anonymous session and every feature
-works, including connecting. The **Sign in** link at the top stays, and opens **Sign in with Cumulus ID** and
-**Create a Cumulus ID** (the same authorize request with `prompt=create`; Cumulus ID's page offers sign-up and
-comes back signed in). Signing in ties the person's devices to one account.
+`id.cumuluscloud.app`). There is no VEIL password, PIN or anonymous account. Until someone signs in, the
+app shows only the sign-in screen: **Sign in with Cumulus ID** and **Create a Cumulus ID** (the same
+authorize request with `prompt=create`; Cumulus ID's page offers sign-up and comes back signed in).
 
 - **Flow.** OAuth 2.0 code + PKCE, client `veil-vpn`. The app opens `/api/id/authorize` in a Custom Tab
   (Android) or a new tab (extension). Cumulus ID returns to `https://infinitumveilvpn.app/app-signin/?to=<app>`
@@ -230,8 +228,9 @@ comes back signed in). Signing in ties the person's devices to one account.
   `POST /v1/session { cid_token }`.
 - **Server.** `core.js` asks the issuer's `/api/id/userinfo` who the token belongs to and stores only
   `sessions.account`, an HMAC of the CID. Each device gets its own session token; all sessions with one account
-  share the balance, today's minutes, the wallet, the daily limit and the epoch cap. Sessions without a
-  Cumulus ID are accepted. Setting `CID_REQUIRED=1` (default `0`) would refuse them again; leave it off.
+  share the balance, today's minutes, the wallet, the daily limit and the epoch cap. Production
+  (`CID_REQUIRED`, default on when `NODE_ENV=production`) refuses sessions without a Cumulus ID, and an older
+  unsigned session gets `401 sign_in_required`, which brings the app back to the sign-in screen.
 - **Russia / mirrors.** The issuer is configurable everywhere: `CID_ISSUER` on the control server and for
   `scripts/build.mjs` (extension) and `scripts/product-site.mjs` (site button, `data-issuer`), and
   `-PveilCidIssuer=https://...` for Android. Point all of them at the same mirror. `GET /v1/cid` reports the
@@ -334,7 +333,7 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   bypasses it for `api.infinitumveilvpn.app` only. The landing page stays gated until it is made public.
 - **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`.
 - **Vars:** `NODES` is the server list (same JSON as `control/nodes.json`), empty until a VPN server exists.
-  `CID_ISSUER` (default `https://id.cumuluscloud.app`) and `CID_REQUIRED` (default `0`: no sign-in needed): see
+  `CID_ISSUER` (default `https://id.cumuluscloud.app`) and `CID_REQUIRED` (default `1` in production): see
   *Sign in with Cumulus ID*. Apply `supabase/migrations/20261111_veil_cid_account.sql` before deploying.
 - **Cron:** hourly purge of network tags older than 3 days.
 - **Memory-only state** (node health, rate limits, ad-event dedupe) is per Worker isolate. The fraud caps that

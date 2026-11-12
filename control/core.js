@@ -48,9 +48,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const DEV = env('NODE_ENV', 'development') !== 'production';
   // Cumulus ID. CID_ISSUER may point at a mirror (e.g. one reachable from Russia without a VPN).
   const CID_ISSUER = String(env('CID_ISSUER', 'https://id.cumuluscloud.app')).replace(/\/+$/, '');
-  // Anyone may use VEIL VPN without signing in: sessions without a Cumulus ID are allowed unless
-  // CID_REQUIRED=1 is set. Signing in with Cumulus ID stays optional (it ties devices to one person).
-  const CID_REQUIRED = env('CID_REQUIRED', '0') === '1';
+  // Production refuses sessions without a Cumulus ID; local development may run without one.
+  const CID_REQUIRED = env('CID_REQUIRED', DEV ? '0' : '1') === '1';
   for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY })) {
     if (v.length < 24) throw new Error(`${k} must be set to at least 24 characters`);
   }
@@ -218,8 +217,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const routes = {
     'GET /healthz': () => ({ ok: true }),
 
-    // { cid_token } is an optional Cumulus ID access token. Without one the session is anonymous
-    // (refused only when CID_REQUIRED=1).
+    // Sign-in: { cid_token } is a Cumulus ID access token. Without one, only local development
+    // (CID_REQUIRED=0) gets a session.
     'POST /v1/session': async (db, req, body) => {
       limit(`s:${req.ip}`, 10, 3_600_000);
       const cidToken = body.cid_token ?? null;

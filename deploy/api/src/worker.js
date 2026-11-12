@@ -6,7 +6,7 @@
 //            DATABASE_URL (Supabase pooler URI, port 6543), unless the HYPERDRIVE binding is set
 //   vars     NODE_ENV=production, optional CPM_USD, CPC_USD, FRAUD_* tuning,
 //            CID_ISSUER (Cumulus ID issuer or its mirror, default https://id.cumuluscloud.app),
-//            CID_REQUIRED (default 0: anyone may use VEIL VPN without signing in; 1 requires Cumulus ID)
+//            CID_REQUIRED (default 1 in production: every session needs a Cumulus ID sign-in)
 //   servers  deploy/api/nodes.json, bundled into the Worker (a text var is capped at 5.1 kB, and each
 //            server's entry is ~1.8 kB). An env NODES (JSON array) overrides it; the tests use that.
 // Client IPs (cf-connecting-ip) are used only in memory for rate limits and the daily-keyed

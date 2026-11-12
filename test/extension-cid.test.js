@@ -41,24 +41,17 @@ test('extension: Sign in / Create a Cumulus ID, then sign out', async () => {
       return Response.json({ access_token: 'cid-access-token-0123456789', profile: { username: 'alice', email: 'alice@cumuluscloud.app', cid: 'cid_x' } });
     }
     if (u === 'https://api.test/v1/session') {
-      const b = JSON.parse(init.body);
-      if (!b.cid_token) return Response.json({ token: 'anon.key', signedIn: false });   // no sign-in needed
-      assert.deepEqual(b, { cid_token: 'cid-access-token-0123456789' });
+      assert.deepEqual(JSON.parse(init.body), { cid_token: 'cid-access-token-0123456789' });
       return Response.json({ token: 'sid.key', signedIn: true });
     }
-    if (u === 'https://api.test/v1/me') {
-      const a = init.headers.authorization;
-      return a === 'Bearer sid.key' ? Response.json({ ok: 1 }) : a === 'Bearer anon.key' ? Response.json({ ok: 'anon' }) : Response.json({ error: 'sign_in_required' }, { status: 401 });
-    }
+    if (u === 'https://api.test/v1/me') return init.headers.authorization === 'Bearer sid.key' ? Response.json({ ok: 1 }) : Response.json({ error: 'sign_in_required' }, { status: 401 });
     if (u === 'https://ru-mirror.test/api/id/signout') return Response.json({ ok: true });
     throw new Error(`unexpected ${u}`);
   };
 
   const { handlers } = await import(pathToFileURL(path.join(dir, 'background.js')).href);
-  // Anyone can use VEIL VPN without signing in: the extension gets an anonymous session.
   assert.equal((await handlers.account()).signedIn, false);
-  assert.deepEqual(await handlers.me(), { ok: 'anon' });
-  assert.equal((await handlers.account()).signedIn, false);
+  await assert.rejects(handlers.me(), /sign_in_required/);
 
   // "Create a Cumulus ID": the authorize URL on the configured mirror, with prompt=create.
   await handlers.signIn({ create: true });
@@ -87,6 +80,5 @@ test('extension: Sign in / Create a Cumulus ID, then sign out', async () => {
   await handlers.signOut();
   assert.equal((await handlers.account()).signedIn, false);
   assert.ok(calls.includes('POST https://ru-mirror.test/api/id/signout'));
-  assert.deepEqual(await handlers.me(), { ok: 'anon' });   // still usable after signing out
   rmSync(dir, { recursive: true, force: true });
 });
