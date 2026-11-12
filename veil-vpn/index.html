@@ -27,7 +27,7 @@
     <a href="#settings" data-nav="settings">Settings</a>
   </nav>
   <span class="proto-note" role="note">Demo</span>
-  <!-- Signed out: a Sign in link in the top-right corner; the app opens on Connect, not on a sign-in page -->
+  <!-- Signed out: a Sign in link in the top-right corner, and the app shows only the sign-in screen below -->
   <div class="signin-wrap">
     <button class="signin-link" id="signin-link" type="button" aria-expanded="false" aria-controls="signin-pop">Sign in</button>
     <div class="signin-pop" id="signin-pop" role="dialog" aria-label="Sign in with Cumulus ID" hidden>
@@ -39,6 +39,17 @@
 </header>
 
 <main id="main">
+  <!-- SIGN IN: the only screen until someone signs in with Cumulus ID -->
+  <section class="view" id="view-signin" aria-labelledby="h-signin" hidden>
+    <div class="context"><span>VEIL VPN</span><span>Cumulus ID</span></div>
+    <h1 id="h-signin">Sign in to use VEIL VPN.<span class="grey">One Cumulus ID for every Infinitum app.</span></h1>
+    <div class="actions gate-actions">
+      <button class="primary" id="gate-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
+      <button class="ghost" id="gate-create" type="button">Create a Cumulus ID</button>
+    </div>
+    <p class="fine" id="gate-status" role="status" aria-live="polite"></p>
+  </section>
+
   <!-- CONNECT -->
   <section class="view" id="view-connect" aria-labelledby="h-connect">
     <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>
