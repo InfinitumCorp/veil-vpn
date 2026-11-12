@@ -384,9 +384,13 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   job that sends queued balances to FIRM Wallet come after the legal review.
 - **Safari extension.**
 - **Placeholders to replace:** the demo ads in `control/ads.json`.
-- **Direct downloads:** `node scripts/package-downloads.mjs` copies the signed APK and the Chrome/Edge zip (with
-  `SHA256SUMS.txt`) into `dist/site/download/`; then `cf deploy` in `deploy/site`. Swap in store URLs in
-  `site/index.html` once the listings are live.
+- **Direct downloads:** `powershell -ExecutionPolicy Bypass -File scripts\release-android.ps1 -VersionCode <n>
+  -VersionName <x.y.z> -AdmobAppId <id> -AdmobBannerId <id> -Publish` builds the signed APK and AAB with the key in
+  `android/keystore/veil-upload.jks` (it asks for the password), refuses a debug-signed or wrong-version APK, then
+  puts `veil-vpn.apk`, the Chrome/Edge zip and the Firefox zip with `SHA256SUMS.txt` in `dist/site/download/` and
+  deploys the site. `-AllowTestAds` (without `-Publish`) is a dry run with Google's sample ads. `npm run build`
+  empties `dist/site`, so never `cf deploy` the site straight after a build: the downloads would go offline.
+  Swap in store URLs in `site/index.html` once the listings are live.
 
 ## Before launch
 
