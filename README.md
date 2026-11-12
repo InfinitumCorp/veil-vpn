@@ -15,6 +15,7 @@ Ad revenue is pooled with the community and paid out in $VEIL.
 | `site/` | Public landing page and privacy policy (`npm run build` writes `dist/site`) | Ready to host; store links still empty |
 | `store/play/` | Google Play listing text, form answers and images | Ready |
 | `android/` | Android app (Kotlin): WireGuard or IKEv2 (Android 11+) for every app, foreground supervisor, same interface in a WebView | Builds (debug and signed release), tested on emulator and phone |
+| `apps/apple/` | macOS 14 and iOS 17 app (SwiftUI) plus a Network Extension packet tunnel. Shared logic is the `VeilVPNKit` package | Package tests on Linux. Device tunnels need a signed Apple build. See `apps/apple/TESTING.md` |
 | `veil-vpn/` | The shared interface. In a normal web page it runs as a simulated demo; inside the extension it runs live | Working |
 | `shared/` | Reward and revenue-share rules (`economics.js`) and token signing (`token.js`) | Single source of truth |
 | `test/` | End-to-end tests (control + node, real sockets), Cumulus ID sign-in, VLESS / Shadowsocks link tests and a local Xray smoke test | 44 tests (2 need Linux and Xray); plus 16 Worker tests in `deploy/api` |
@@ -362,8 +363,7 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 
 ## Not built yet
 
-- **iOS app.** iPhone, Mac and Windows already work today through their built-in IKEv2 VPN, with a
-  set-up from *Other devices* (see the site's "iPhone, Mac, Windows" panel). A native app needs a Mac with Xcode and an Apple developer account (Network Extension + WireGuardKit).
+- **iOS and macOS signing.** The native app is in `apps/apple` (WireGuard packet tunnel, IKEv2 through the system VPN, the same screens as Android). A tunnel on a phone or Mac needs an Apple developer account and a signed build. See `apps/apple/TESTING.md`. Windows still uses the IKEv2 set-up from *Other devices*.
 - **A real "Protected" test on Android, and Tor through a real node.** Both need a rented Linux
   server from `node/provision.sh` (with `TOR=1` for Tor).
 - **Store links.** Fill in `DOWNLOADS` in `site/index.html` once the Chrome, Firefox and Play
