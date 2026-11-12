@@ -8,6 +8,9 @@ import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.graphics.Typeface
+import android.widget.TextView
+import android.view.Gravity
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -88,13 +91,30 @@ class MainActivity : ComponentActivity() {
         ), "VeilAndroid")
 
         // Android 15+ draws edge to edge: keep the interface clear of the status and navigation bars.
-        // The AdMob banner sits under the interface and stays collapsed until an ad loads.
-        val adSlot = FrameLayout(this).apply { visibility = View.GONE }
+        // AdMob runs in a skinny black ticker strip along the bottom: a small "AD" tag, then the
+        // 320x50 banner. The strip stays collapsed until an ad loads.
+        val dp = resources.displayMetrics.density
+        val adSlot = FrameLayout(this)
+        val adStrip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.BLACK)
+            visibility = View.GONE
+            addView(TextView(this@MainActivity).apply {
+                text = "AD"
+                setTextColor(0xFF9A9A9A.toInt())
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                letterSpacing = 0.15f
+                setPadding((10 * dp).toInt(), 0, (8 * dp).toInt(), 0)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(adSlot, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { gravity = Gravity.CENTER_VERTICAL })
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
             addView(web, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-            addView(adSlot, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(adStrip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -112,7 +132,7 @@ class MainActivity : ComponentActivity() {
             override fun handleOnBackPressed() { if (web.canGoBack()) web.goBack() else finish() }
         })
 
-        ads = Ads(this, adSlot).also { it.start() }
+        ads = Ads(this, adStrip, adSlot).also { it.start() }
         handleSignIn(intent)
         NetworkGuard.register(applicationContext)
         if (Build.VERSION.SDK_INT >= 33 &&
