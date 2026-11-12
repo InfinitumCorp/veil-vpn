@@ -92,7 +92,8 @@ tasks.matching { it.name.matches(Regex("(assemble|bundle)Release")) }.configureE
     doFirst {
         check(controlUrl.startsWith("https://")) { "Release builds need -PveilControlUrl=https://... (got $controlUrl)" }
         check(canSign) { "Release builds need a signing key: see android/keystore.properties.example" }
-        check(admobAppId != admobTestAppId && admobBannerId != admobTestBannerId) { "Release builds need Infinitum's AdMob IDs: -PveilAdmobAppId=... -PveilAdmobBannerId=..." }
+        // -PveilAllowTestAds=true: a release build for a test phone only, never for the store.
+        check(findProperty("veilAllowTestAds") == "true" || (admobAppId != admobTestAppId && admobBannerId != admobTestBannerId)) { "Release builds need Infinitum's AdMob IDs: -PveilAdmobAppId=... -PveilAdmobBannerId=..." }
     }
 }
 
@@ -104,6 +105,8 @@ dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.browser:browser:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // AdMob pulls an old androidx.fragment; the ActivityResult APIs need 1.3.0 or later.
+    implementation("androidx.fragment:fragment-ktx:1.8.8")
     implementation("com.google.android.gms:play-services-ads:24.4.0")
     implementation("com.google.android.ump:user-messaging-platform:3.2.0")
     // Amplitude: app opens and sessions only (see Analytics.kt).
