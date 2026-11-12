@@ -237,5 +237,4 @@ html:not(.signed-out) .signin-wrap{display:none}
 .signin-pop button{width:100%}
 .signin-pop .fine{margin:0}
 .signin-pop .fine:empty{display:none}
-html.signed-out .tabs,html.signed-out nav.bottom{visibility:hidden}
 .account-row small{overflow-wrap:anywhere}

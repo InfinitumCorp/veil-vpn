@@ -249,14 +249,14 @@ paintAccount();
 // ---------------------------------------------------------------- navigation
 const VIEWS = ['connect', 'servers', 'earn', 'revenue', 'settings'];
 const route = () => {
-  // Signed out: only Connect shows (the other screens need an account); the Sign in link is top right.
+  // Every screen shows signed in or out; only connecting and your own balance need a Cumulus ID.
   const h = location.hash.slice(1) === 'community' ? 'revenue' : location.hash.slice(1);
-  const v = gated ? 'connect' : VIEWS.includes(h) ? h : 'connect';
+  const v = VIEWS.includes(h) ? h : 'connect';
   VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
   $$('[data-nav]').forEach((a) => (a.dataset.nav === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   if (v === 'revenue') renderRevenue();
   if (v === 'earn') renderEarn();
-  if (!gated && (v === 'servers' || v === 'connect')) retryServers();
+  if (v === 'servers' || v === 'connect') retryServers();
   window.scrollTo(0, 0);
 };
 let retryServers = () => {};   // set once the server list loader exists (below)
@@ -331,7 +331,7 @@ power.addEventListener('click', async (e) => {
     loadAd();
   } catch (e) { if (my !== attempt) return; conn = { state: 'off' }; paintConn(); toast(errText(e)); }
 });
-$('#location-btn').addEventListener('click', (e) => { if (gated) { e.stopPropagation(); openSignIn(); return; } location.hash = 'servers'; });
+$('#location-btn').addEventListener('click', () => { location.hash = 'servers'; });
 function renderLoc() {
   const s = srv(selected); if (!s) return;
   $('#loc-cc').textContent = cc(s.flag); $('#loc-name').textContent = `${s.city}, ${s.country}`;
@@ -370,7 +370,7 @@ $('#ad-body').addEventListener('click', () => {
   if (conn.state === 'on') api.adEvent(currentAd.id, 'click').then(() => { if (!$('#view-revenue').hidden) renderRevenue(); }).catch(() => {});
   if (currentAd.url) window.open(currentAd.url, '_blank', 'noopener');
 });
-setInterval(() => { if (!gated) loadAd(); }, 30_000);
+setInterval(loadAd, 30_000);
 
 // ---------------------------------------------------------------- earn view
 // Why the server stopped crediting minutes (fraud protection), in plain words.
@@ -572,7 +572,7 @@ $('#dev-get').addEventListener('click', async () => {
   finally { btn.disabled = false; }
 });
 if (!gated) api.setEarn(SET.earn);
-if (!gated) renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
+renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
 if (!gated) try { conn = await api.state(); } catch { /* keep the default */ }
 // On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
 // until the list arrives, instead of staying on an empty Locations screen.
@@ -593,7 +593,7 @@ async function loadServers() {
   } finally { serversBusy = false; }
 }
 retryServers = () => { if (!servers.length) loadServers(); };
-if (gated) { paintConn(); route(); } else { await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday(); loadAd(); route(); }
+await loadServers(); renderLoc(); renderServers(); paintConn(); if (!gated) renderToday(); loadAd(); route();
 statTimer = setInterval(async () => {
   if (gated) return;
   if (LIVE) {
