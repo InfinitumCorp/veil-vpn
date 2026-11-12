@@ -215,7 +215,7 @@ test('lists the bundled servers when NODES is not set', async () => {
   assert.ok(servers.every((s) => s.modes.includes('wireguard') && s.modes.includes('openvpn')));
 });
 
-test('production: sessions need a Cumulus ID, and one CID is one account across devices (Postgres)', async () => {
+test('production: sessions need no sign-in by default; with CID_REQUIRED=1 they need a Cumulus ID, and one CID is one account across devices (Postgres)', async () => {
   const people = { 'carol-laptop-0123456789abcdef': 'cid_carol', 'carol-phone-0123456789abcdef0': 'cid_carol' };
   const asked = [];
   const fetchFn = async (url, init = {}) => {
@@ -225,12 +225,18 @@ test('production: sessions need a Cumulus ID, and one CID is one account across 
     return new Response(JSON.stringify(cid ? { cid } : { error: 'Not signed in' }), { status: cid ? 200 : 401 });
   };
   const w = makeWorker(() => ({ db, close: async () => {} }), { fetchFn });
-  const e = { ...env, CID_REQUIRED: undefined, CID_ISSUER: 'https://ru-id.example' };
+  const e = { ...env, CID_REQUIRED: '1', CID_ISSUER: 'https://ru-id.example' };
   const post = async (path, body, { token, device = 'worker-cid-device-1' } = {}) => {
     const r = await w.fetch(new Request(`https://api.test${path}`, { method: body ? 'POST' : 'GET', body: body && JSON.stringify(body),
       headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.9', 'x-veil-device': device, ...(token && { authorization: `Bearer ${token}` }) } }), e, { waitUntil: () => {} });
     return { status: r.status, body: await r.json() };
   };
+  // Production with no CID_REQUIRED set: anyone gets a session without signing in.
+  const wOpen = makeWorker(() => ({ db, close: async () => {} }), { fetchFn });
+  const open = await wOpen.fetch(new Request('https://api.test/v1/session', { method: 'POST', body: '{}',
+    headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.10', 'x-veil-device': 'worker-anon-device-1' } }), { ...env, CID_REQUIRED: undefined }, { waitUntil: () => {} });
+  const ob = await open.json();
+  assert.equal(open.status, 200, JSON.stringify(ob)); assert.equal(ob.signedIn, false); assert.ok(ob.token);
   assert.equal((await post('/v1/cid')).body.issuer, 'https://ru-id.example');
   assert.deepEqual(await post('/v1/session', {}), { status: 401, body: { error: 'sign_in_required' } });
   assert.equal((await post('/v1/me', undefined, { token })).body.error, 'sign_in_required');   // the earlier unsigned session

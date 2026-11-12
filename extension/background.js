@@ -18,20 +18,36 @@ async function device() {
   return d;
 }
 const idHeaders = async () => ({ 'x-veil-device': await device(), 'x-veil-platform': typeof chrome.proxy.onRequest !== 'undefined' ? 'firefox' : 'chrome' });
-// The session comes from signing in with Cumulus ID (below); there is no anonymous one.
-async function session() {
-  const t = await get('local', 'session');
-  if (!t) throw new Error('sign_in_required');
-  return t;
+// Anyone may use VEIL VPN without signing in: with no session yet, this gets an anonymous one.
+// Signing in with Cumulus ID (below) replaces it with a session tied to the person.
+let anonPending = null;
+async function anonSession() {
+  anonPending ??= (async () => {
+    const r = await fetch(`${CONTROL_URL}/v1/session`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(await idHeaders()) }, body: '{}',
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.token) throw new Error(j.error || `http_${r.status}`);
+    await set('local', 'session', j.token);
+    return j.token;
+  })().finally(() => { anonPending = null; });
+  return anonPending;
 }
-async function api(path, { method = 'GET', body } = {}) {
+async function session() {
+  return (await get('local', 'session')) || anonSession();
+}
+async function api(path, { method = 'GET', body } = {}, retried = false) {
   const token = path === '/v1/servers' || path.startsWith('/v1/ads?') || path === '/v1/pool' ? await get('local', 'session') : await session();
   const r = await fetch(`${CONTROL_URL}${path}`, {
     method, headers: { ...(token && { authorization: `Bearer ${token}` }), 'content-type': 'application/json', ...(await idHeaders()) },
     body: body ? JSON.stringify(body) : undefined,
   });
-  // The server no longer accepts this session: sign in again.
-  if (r.status === 401) { await forgetSignIn(); throw new Error('sign_in_required'); }
+  // The server no longer accepts this session: drop it and carry on with a fresh anonymous one.
+  if (r.status === 401) {
+    await forgetSignIn();
+    if (!retried) return api(path, { method, body }, true);
+    throw new Error('sign_in_required');
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `http_${r.status}`);
   return j;

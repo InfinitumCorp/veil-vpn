@@ -198,11 +198,13 @@ const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 // page first; either way the person comes back here signed in.
 let account = { signedIn: !LIVE };
 if (LIVE) { try { account = await api.account(); } catch { account = { signedIn: false }; } }
-let gated = !account.signedIn;
-document.documentElement.classList.toggle('signed-out', gated);
+// Signing in is optional: anyone can connect without a Cumulus ID. Signed out only shows the
+// "Sign in" link at the top; nothing is locked behind it.
+let signedOutNow = !account.signedIn;
+document.documentElement.classList.toggle('signed-out', signedOutNow);
 function signedOut() {
-  if (gated) return;
-  gated = true; account = { signedIn: false };
+  if (signedOutNow) return;
+  signedOutNow = true; account = { signedIn: false };
   document.documentElement.classList.add('signed-out');
   paintAccount(); route();
 }
@@ -237,7 +239,7 @@ $('#cid-signout').addEventListener('click', async () => {
 });
 // Back from the browser (Android resumes the app; the extension popup reopens): check again.
 async function recheck() {
-  if (!gated || !LIVE) return;
+  if (!signedOutNow || !LIVE) return;
   const a = await api.account().catch(() => null);
   if (a?.signedIn) location.reload();
   else if (a?.error) $('#cid-status').textContent = errText(new Error(a.error));
@@ -319,7 +321,6 @@ async function renderToday() {
 }
 let attempt = 0;   // a cancelled connect must not repaint when its answer arrives late
 power.addEventListener('click', async (e) => {
-  if (gated) { e.stopPropagation(); openSignIn(); return; }   // connecting needs a Cumulus ID
   const my = ++attempt;
   try {
     // Connected, reconnecting or still waiting for the first handshake: the button stops the tunnel.
@@ -571,9 +572,9 @@ $('#dev-get').addEventListener('click', async () => {
   } catch (e) { toast(errText(e)); }
   finally { btn.disabled = false; }
 });
-if (!gated) api.setEarn(SET.earn);
+Promise.resolve().then(() => api.setEarn(SET.earn)).catch(() => { /* best effort */ });
 renderServers(); // show "Loading locations…" right away; the first state call can be slow on a fresh install
-if (!gated) try { conn = await api.state(); } catch { /* keep the default */ }
+try { conn = await api.state(); } catch { /* keep the default */ }
 // On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
 // until the list arrives, instead of staying on an empty Locations screen.
 let serversTry = 0, serversTimer = null, serversBusy = false;
@@ -593,9 +594,8 @@ async function loadServers() {
   } finally { serversBusy = false; }
 }
 retryServers = () => { if (!servers.length) loadServers(); };
-await loadServers(); renderLoc(); renderServers(); paintConn(); if (!gated) renderToday(); loadAd(); route();
+await loadServers(); renderLoc(); renderServers(); paintConn(); renderToday().catch(() => {}); loadAd(); route();
 statTimer = setInterval(async () => {
-  if (gated) return;
   if (LIVE) {
     const s = await api.state().catch(() => null);
     if (s) {
@@ -606,10 +606,9 @@ statTimer = setInterval(async () => {
   paintStats();
 }, 1000);
 setInterval(() => {
-  if (gated) return;
-  renderToday(); renderBlocked();
+  renderToday().catch(() => {}); renderBlocked();
   if (!$('#view-revenue').hidden) renderRevenue();
   if (!$('#view-earn').hidden) renderEarn();
 }, LIVE ? 10_000 : 2000);
-if (SET.auto && conn.state === 'off' && !LIVE && !gated) power.click();
+if (SET.auto && conn.state === 'off' && !LIVE) power.click();
 if ('serviceWorker' in navigator && !LIVE && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
