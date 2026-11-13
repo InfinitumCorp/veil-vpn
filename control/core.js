@@ -44,7 +44,7 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const CPC_USD = Number(env('CPC_USD', 0.10));  // estimated revenue per click
   const TOKEN_TTL = Number(env('TOKEN_TTL_MS', 15 * 60_000));
   const MANUAL_TTL = Number(env('MANUAL_TTL_MS', 7 * 86_400_000));
-  const MODES = ['proxy', 'wireguard', 'ikev2', 'openvpn', ...PROXY_MODES];
+  const MODES = ['proxy', 'wireguard', 'amneziawg', 'ikev2', 'openvpn', ...PROXY_MODES];
   const DEV = env('NODE_ENV', 'development') !== 'production';
   // Cumulus ID. CID_ISSUER may point at a mirror (e.g. one reachable from Russia without a VPN).
   const CID_ISSUER = String(env('CID_ISSUER', 'https://id.cumuluscloud.app')).replace(/\/+$/, '');
@@ -171,9 +171,11 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const admin = (req) => { if ((req.header('authorization') || '') !== `Bearer ${ADMIN_KEY}`) fail(401, 'unauthorized'); };
 
   // ---------- domain ----------
-  async function nextWgIp(db, nodeId) {
+  // WireGuard peers get 10.66.0.0/16 (wg0); AmneziaWG peers 10.70.0.0/16 (awg0). 10.67-10.69 are IKEv2 / OpenVPN.
+  const WG_NET = { wireguard: '10.66', amneziawg: '10.70' };
+  async function nextWgIp(db, nodeId, net = '10.66') {
     const used = new Set((await db.all('SELECT ip FROM wg_peers WHERE node = ?', nodeId)).map((r) => String(r.ip)));
-    for (let i = 2; i < 65_000; i++) { const ip = `10.66.${i >> 8}.${i & 255}`; if (!used.has(ip)) return ip; }
+    for (let i = 2; i < 65_000; i++) { const ip = `${net}.${i >> 8}.${i & 255}`; if (!used.has(ip)) return ip; }
     fail(503, 'server_full');
   }
 
@@ -363,16 +365,24 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
         if (mode === 'ikev2') return { ...common, ikev2: { server: n.ikev2.host, remoteId: n.ikev2.remoteId || n.ikev2.host, username: acct.user, password: acct.pass, auth: 'eap-mschapv2', dns: n.ikev2.dns || '10.66.0.1' } };
         return { ...common, openvpn: { username: acct.user, password: acct.pass, profile: ovpnProfile(n) } };
       }
-      if (mode === 'wireguard') {
+      // WireGuard, and AmneziaWG: WireGuard with junk packets and changed headers (Jc..H4), which
+      // DPI in Russia does not recognise. Same keys and peer handling; its own interface and address pool.
+      if (mode === 'wireguard' || mode === 'amneziawg') {
         const pub = String(body.publicKey || '');
         if (!/^[A-Za-z0-9+/]{43}=$/.test(pub)) fail(400, 'bad_public_key');
+        const net = WG_NET[mode];
         const old = await db.get('SELECT node, ip FROM wg_peers WHERE pubkey = ?', pub);
-        const ip = old && old.node === n.id ? String(old.ip) : await nextWgIp(db, n.id);
+        const ip = old && old.node === n.id && String(old.ip).startsWith(`${net}.`) ? String(old.ip) : await nextWgIp(db, n.id, net);
+        // The same key moving between wg0 and awg0 on one node: drop it from the other interface first.
+        if (old && old.node === n.id && String(old.ip) !== ip) await agent(n, 'POST', '/peers/remove', { publicKey: pub, ip: String(old.ip) }).catch(() => {});
         await agent(n, 'POST', '/peers', { publicKey: pub, ip, tor, block });
         await db.run(`INSERT INTO wg_peers (pubkey, sid, node, ip) VALUES (?, ?, ?, ?)
           ON CONFLICT (pubkey) DO UPDATE SET node = excluded.node, ip = excluded.ip, sid = excluded.sid`, pub, s.id, n.id, ip);
-        return { mode: 'wireguard', server: publicNode(n), exp, tor, block, wireguard: {
-          address: `${ip}/32`, dns: n.wg.dns || '10.66.0.1', peerPublicKey: n.wg.publicKey, endpoint: n.wg.endpoint, allowedIps: '0.0.0.0/0, ::/0', keepalive: 25 } };
+        const cfg = mode === 'amneziawg' ? n.awg : n.wg;
+        const base = { address: `${ip}/32`, dns: cfg.dns || n.wg?.dns || '10.66.0.1', peerPublicKey: cfg.publicKey, endpoint: cfg.endpoint, allowedIps: '0.0.0.0/0, ::/0', keepalive: 25 };
+        if (mode === 'wireguard') return { mode, server: publicNode(n), exp, tor, block, wireguard: base };
+        const { jc, jmin, jmax, s1, s2, h1, h2, h3, h4 } = n.awg;
+        return { mode, server: publicNode(n), exp, tor, block, amneziawg: { ...base, jc, jmin, jmax, s1, s2, h1, h2, h3, h4 } };
       }
       const token = sign({ sid: hash(s.id).slice(0, 16), node: n.id, exp, ...(tor && { tor: true }), ...(!block && { block: false }) }, TOKEN_SECRET);
       return { mode: 'proxy', server: publicNode(n), exp, tor, block, proxy: { scheme: n.proxy.scheme, host: n.proxy.host, port: n.proxy.port, username: 'veil', password: token } };

@@ -31,6 +31,7 @@ const CAPACITY = Number(env('CAPACITY', 2000));            // concurrent tunnels
 const PER_TOKEN = Number(env('MAX_CONNS_PER_TOKEN', 256));
 const ALLOW_PRIVATE = env('ALLOW_PRIVATE', '') === '1';   // tests only
 const WG_IFACE = env('WG_IFACE', 'wg0');
+const AWG_IFACE = env('AWG_IFACE', 'awg0');   // AmneziaWG: peers in 10.70.0.0/16
 const WG_DRY_RUN = env('WG_DRY_RUN', process.platform === 'linux' ? '' : '1') === '1';
 const BLOCKED_PORTS = new Set([25, 465, 587]);              // no outbound mail relaying
 const PROBE_HOST = 'veil-check.invalid';                    // reserved TLD, never resolves
@@ -256,7 +257,7 @@ const onRequest = async (req, res) => {
 // the 7-day set-up for another device; the login works while either is in the future.
 const USER_RE = /^v[0-9a-f]{15}$/;
 const PASS_RE = /^[A-Za-z0-9_-]{24}$/;
-const TUN_RE = /^10\.(66|67|68|69)\.\d{1,3}\.\d{1,3}$/;
+const TUN_RE = /^10\.(66|67|68|69|70)\.\d{1,3}\.\d{1,3}$/;
 const accounts = new Map();   // user -> { pass, live, manual, tor, block }
 const bound = new Map();      // tunnel IP -> user (IKEv2 / OpenVPN clients that are up now)
 const validAcct = (a, now = Date.now()) => !!a && Math.max(a.live, a.manual) > now;
@@ -314,7 +315,7 @@ const hookHandler = async (req, res) => {
   if (req.method === 'POST' && req.url === '/bind') {
     let b = {}; try { b = JSON.parse(text); } catch { /* bad input */ }
     const ip = String(b.ip || '').replace(/\/\d+$/, '');
-    if (!TUN_RE.test(ip) || ip.startsWith('10.66.')) { res.writeHead(400); return res.end(); }
+    if (!TUN_RE.test(ip) || ip.startsWith('10.66.') || ip.startsWith('10.70.')) { res.writeHead(400); return res.end(); }
     const user = String(b.user || '');
     if (b.up === true && USER_RE.test(user) && validAcct(accounts.get(user))) { bound.set(ip, user); applyTunnel(ip, accounts.get(user)); }
     else { bound.delete(ip); applyTunnel(ip, null); }
@@ -324,10 +325,12 @@ const hookHandler = async (req, res) => {
 };
 
 // ---------- WireGuard agent ----------
-const run = (args) => new Promise((resolve, reject) => {
-  if (WG_DRY_RUN) { console.log('[dry-run] wg', args.join(' ')); return resolve(''); }
-  execFile('wg', args, { timeout: 5000 }, (e, out) => (e ? reject(e) : resolve(out)));
+const run = (args, tool = 'wg') => new Promise((resolve, reject) => {
+  if (WG_DRY_RUN) { console.log(`[dry-run] ${tool}`, args.join(' ')); return resolve(''); }
+  execFile(tool, args, { timeout: 5000 }, (e, out) => (e ? reject(e) : resolve(out)));
 });
+// WireGuard peers live on wg0 (10.66.x), AmneziaWG peers on awg0 (10.70.x), set with the awg tool.
+const peerIface = (ip) => (String(ip).startsWith('10.70.') ? [AWG_IFACE, 'awg'] : [WG_IFACE, 'wg']);
 // Tor over VPN for WireGuard: peers in the nftables set tor_peers have their traffic redirected
 // into Tor by the firewall rules from provision.sh.
 const nft = (op, ip) => new Promise((resolve) => {
@@ -336,7 +339,7 @@ const nft = (op, ip) => new Promise((resolve) => {
   execFile('nft', args, { timeout: 5000 }, () => resolve());     // deleting a missing element is fine
 });
 const KEY_RE = /^[A-Za-z0-9+/]{43}=$/;
-const IP_RE = /^10\.66\.\d{1,3}\.\d{1,3}$/;
+const IP_RE = /^10\.(66|70)\.\d{1,3}\.\d{1,3}$/;
 let peers = 0;
 const agentJson = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
 const agentHandler = async (req, res) => {
@@ -350,14 +353,16 @@ const agentHandler = async (req, res) => {
     if (req.method === 'POST' && req.url === '/peers') {
       if (!KEY_RE.test(body.publicKey || '') || !IP_RE.test(body.ip || '')) return agentJson(res, 400, { error: 'bad_input' });
       if (body.tor === true && !TOR_SOCKS) return agentJson(res, 400, { error: 'tor_unavailable' });
-      await run(['set', WG_IFACE, 'peer', body.publicKey, 'allowed-ips', `${body.ip}/32`]);
+      const [iface, tool] = peerIface(body.ip);
+      await run(['set', iface, 'peer', body.publicKey, 'allowed-ips', `${body.ip}/32`], tool);
       await nft(body.tor === true ? 'add' : 'delete', body.ip);
       if (body.block === false) unblocked.add(body.ip); else unblocked.delete(body.ip);
       peers++; return agentJson(res, 200, { ok: true, tor: body.tor === true });
     }
     if (req.method === 'POST' && req.url === '/peers/remove') {
       if (!KEY_RE.test(body.publicKey || '')) return agentJson(res, 400, { error: 'bad_input' });
-      await run(['set', WG_IFACE, 'peer', body.publicKey, 'remove']);
+      const [iface, tool] = IP_RE.test(body.ip || '') ? peerIface(body.ip) : [WG_IFACE, 'wg'];
+      await run(['set', iface, 'peer', body.publicKey, 'remove'], tool);
       if (IP_RE.test(body.ip || '')) { await nft('delete', body.ip); unblocked.delete(body.ip); }
       peers = Math.max(0, peers - 1); return agentJson(res, 200, { ok: true });
     }
