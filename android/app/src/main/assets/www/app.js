@@ -363,6 +363,7 @@ async function loadAd() {
   if (!a) return;
   // VEIL Premium: no ad at all.
   $('.ad').hidden = !!a.premium;
+  if ($('#premium-row')) $('#premium-row').hidden = !a.premium;
   if (a.premium) { currentAd = null; return; }
   currentAd = a;
   $('#ad-body').innerHTML = `<span class="ad-logo">${a.mark}</span><p><strong>${a.title}</strong>${a.body}</p>`;
