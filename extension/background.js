@@ -100,7 +100,13 @@ async function finishSignIn(url, tabId) {
   }
   if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
 }
-async function forgetSignIn() { await S.local.remove(['session', 'cid']); }
+// The ad pass is tied to the session, so a new session needs a new pass.
+async function forgetSignIn() { await S.local.remove(['session', 'cid', 'pass']); }
+// The 24-hour pass earned by watching a curated ad; sent with every connect.
+async function currentPass() {
+  const p = await get('local', 'pass');
+  return p && p.exp > Date.now() + 60_000 ? p : null;
+}
 async function signOut() {
   const c = await get('session', 'conn');
   if (c && c.state !== 'off') await disconnect();
@@ -154,7 +160,7 @@ async function connect(server, { reconnect = false } = {}) {
   if (!reconnect) await set('session', 'conn', { state: 'connecting', server, since: 0 });
   try {
     const st = await settings();
-    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false } });
+    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false, pass: (await currentPass())?.pass } });
     await set('session', 'creds', { username: r.proxy.username, password: r.proxy.password });
     await applyProxy(r.proxy);
     if (!(await probe())) throw new Error('node_unreachable');
@@ -273,6 +279,18 @@ export const handlers = {   // exported for tests; the popup reaches these by me
   blocked: () => api('/v1/blocked'),
   ad: (m) => api(`/v1/ads?region=${encodeURIComponent(m.region || 'global')}`),
   adEvent: (m) => api('/v1/ads/event', { method: 'POST', body: { ad: m.ad, kind: m.kind } }),
+  // The free-access gate: watch one curated ad on start-up, get 24 hours of VEIL VPN.
+  passStatus: async () => {
+    const p = await currentPass();
+    if (p) return { required: true, exp: p.exp };
+    return api('/v1/pass/check', { method: 'POST', body: {} });
+  },
+  passStart: (m) => api('/v1/pass/start', { method: 'POST', body: { region: m.region || 'global' } }),
+  passFinish: async (m) => {
+    const r = await api('/v1/pass/finish', { method: 'POST', body: { ticket: String(m.ticket) } });
+    await set('local', 'pass', { pass: r.pass, exp: r.exp });
+    return { exp: r.exp };
+  },
   wallet: (m) => api('/v1/wallet', { method: 'POST', body: { address: m.address } }),
   claim: () => api('/v1/claim', { method: 'POST' }),
   // A set-up for another device. For WireGuard the popup made the key pair and sends only the public key.
@@ -281,7 +299,7 @@ export const handlers = {   // exported for tests; the popup reaches these by me
     const s = await settings();
     const mode = String(m.mode);
     const proxyMode = mode === 'vless' || mode === 'vless-ws' || mode === 'shadowsocks' || mode === 'shadowsocks-ws';
-    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode, manual: true, publicKey: m.publicKey, tor: proxyMode ? false : s.tor, block: s.block } });
+    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode, manual: true, publicKey: m.publicKey, tor: proxyMode ? false : s.tor, block: s.block, pass: (await currentPass())?.pass } });
   },
   setting: async (m) => {
     const s = await settings(); s[m.key] = m.value; await set('local', 'settings', s);

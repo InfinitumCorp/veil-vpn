@@ -19,7 +19,7 @@
 // Request `req`: { method, path, query: URLSearchParams, header(name), ip }. `ip` is used only as an
 // in-memory rate-limit key and for the daily-keyed network hash in fraud.js; it is never stored.
 import { randomBytes, createHash, createHmac } from 'node:crypto';
-import { sign } from '../shared/token.js';
+import { sign, verify } from '../shared/token.js';
 import { modesOf, clientBundle, serviceBlocks, PROXY_MODES, responseKey, issues } from '../shared/proxyproto.js';
 import { createFraud } from './fraud.js';
 import { RATE_PER_MIN, MAX_MIN, REF_PRICE, split, memberShare } from '../shared/economics.js';
@@ -61,7 +61,13 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     if (bad.length) throw new Error(`node ${n.id || '?'}: ${bad.join('; ')}`);
   }
   const ADS = ads;
-  const fraud = createFraud({ secret: TOKEN_SECRET, maxMinutes: MAX_MIN, env });
+  // Free access, paid for by ads: watching one curated ad at start-up unlocks 24 hours. The server times
+  // the ad itself (a signed ticket at the start, a signed pass only once PASS_AD_SECONDS have gone by),
+  // and /v1/connect refuses a session without a current pass. Off by default in local development.
+  const PASS_REQUIRED = env('PASS_REQUIRED', DEV ? '0' : '1') === '1';
+  const PASS_AD_MS = Math.max(1, Number(env('PASS_AD_SECONDS', '15'))) * 1000;
+  const PASS_MS = Math.max(1, Number(env('PASS_HOURS', '24'))) * 3_600_000;
+  const fraud =createFraud({ secret: TOKEN_SECRET, maxMinutes: MAX_MIN, env });
 
   // ---------- memory-only state (per process / per Worker isolate) ----------
   const health = new Map(NODES.map((n) => [n.id, { up: false, load: 0, checked: 0 }]));
@@ -214,6 +220,38 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     return { ...p, paidMembers: rows.length, heldMembers: rows.filter((r) => r.held).length, cappedMinutes: p.minutes - total };
   }
 
+  // ---------- ads and the 24-hour pass ----------
+  // Contextual ads: chosen by the server's region only, never by user profile.
+  const pickAd = (region) => {
+    const pool = ADS.filter((a) => a.regions.includes(region) || a.regions.includes('global'));
+    return (pool.length ? pool : ADS)[Math.floor(Math.random() * (pool.length || ADS.length))];
+  };
+  const publicAd = (a) => ({ id: a.id, mark: a.mark, title: a.title, body: a.body, url: a.url, sponsor: a.sponsor });
+  async function countAd(db, s, a, kind) {
+    const k = `${s.id}:${a.id}:${kind}`;
+    if (adSeen.has(k)) return { counted: false };
+    const d = day();
+    const blocked = await fraud.adBlock(db, s, kind, d);
+    if (blocked) return { counted: false, reason: blocked };
+    adSeen.set(k, Date.now());
+    const v = kind === 'view' ? 1 : 0, c = kind === 'click' ? 1 : 0;
+    const usd = kind === 'view' ? CPM_USD / 1000 : CPC_USD;
+    await db.run(`INSERT INTO ad_stats (day, ad, views, clicks) VALUES (?, ?, ?, ?)
+      ON CONFLICT (day, ad) DO UPDATE SET views = ad_stats.views + excluded.views, clicks = ad_stats.clicks + excluded.clicks`, d, a.id, v, c);
+    await db.run(`INSERT INTO revenue (day, estimated_usd) VALUES (?, ?)
+      ON CONFLICT (day) DO UPDATE SET estimated_usd = revenue.estimated_usd + excluded.estimated_usd`, d, usd);
+    // Per-member count only (no ad or site detail), so members can see the revenue they helped generate.
+    await db.run(`INSERT INTO member_ads (sid, day, views, clicks, usd) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (sid, day) DO UPDATE SET views = member_ads.views + excluded.views, clicks = member_ads.clicks + excluded.clicks, usd = member_ads.usd + excluded.usd`,
+      s.id, d, v, c, usd);
+    return { counted: true };
+  }
+  // A pass is good only for the session it was earned on, and only until it expires.
+  const validPass = (s, pass) => {
+    const p = verify(typeof pass === 'string' ? pass : '', TOKEN_SECRET);
+    return p && p.typ === 'pass' && p.sid === hash(s.id).slice(0, 16) ? p : null;
+  };
+
   // ---------- routes ----------
   const routes = {
     'GET /healthz': () => ({ ok: true }),
@@ -239,8 +277,35 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
 
     'GET /v1/servers': async () => { await freshHealth(); return { servers: NODES.map(publicNode) }; },
 
+    // The start-up ad: a curated ad and a ticket that is worth a pass once the ad has run its full time.
+    'POST /v1/pass/start': async (db, req, body) => {
+      const s = await auth(db, req); limit(`ps:${s.id}`, 60, 3_600_000);
+      const a = pickAd(String(body.region || 'global'));
+      const now = Date.now();
+      const ticket = sign({ typ: 'adticket', sid: hash(s.id).slice(0, 16), ad: a.id, t: now, exp: now + 30 * 60_000 }, TOKEN_SECRET);
+      return { ad: publicAd(a), seconds: PASS_AD_MS / 1000, ticket, hours: PASS_MS / 3_600_000 };
+    },
+    'POST /v1/pass/finish': async (db, req, body) => {
+      const s = await auth(db, req); limit(`pf:${s.id}`, 60, 3_600_000);
+      const now = Date.now();
+      const t = verify(String(body.ticket || ''), TOKEN_SECRET, now);
+      if (!t || t.typ !== 'adticket' || t.sid !== hash(s.id).slice(0, 16)) fail(400, 'bad_ticket');
+      if (now - t.t < PASS_AD_MS - 1000) fail(425, 'ad_not_finished');
+      const a = ADS.find((x) => x.id === t.ad);
+      if (a) await countAd(db, s, a, 'view').catch(() => {});
+      const exp = now + PASS_MS;
+      return { pass: sign({ typ: 'pass', sid: hash(s.id).slice(0, 16), exp }, TOKEN_SECRET), exp };
+    },
+    // Whether this session's pass (sent back by the app) is still good, and until when.
+    'POST /v1/pass/check': async (db, req, body) => {
+      const s = await auth(db, req);
+      const p = validPass(s, body.pass);
+      return { required: PASS_REQUIRED, exp: p ? p.exp : 0 };
+    },
+
     'POST /v1/connect': async (db, req, body) => {
       const s = await auth(db, req); limit(`c:${s.id}`, 30, 600_000);
+      if (PASS_REQUIRED && !validPass(s, body.pass)) fail(402, 'pass_required');
       const n = nodeById(String(body.server || ''));
       await freshHealth();
       if (!health.get(n.id).up && !DEV) fail(503, 'server_offline');
@@ -357,35 +422,12 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       return { queued: r.changes, ...(await me(db, s)) };
     },
 
-    // Contextual ads: chosen by the server's region only, never by user profile.
-    'GET /v1/ads': (db, req) => {
-      const region = req.query.get('region') || 'global';
-      const pool = ADS.filter((a) => a.regions.includes(region) || a.regions.includes('global'));
-      const a = pool[Math.floor(Math.random() * pool.length)];
-      return { id: a.id, mark: a.mark, title: a.title, body: a.body, url: a.url, sponsor: a.sponsor };
-    },
+    'GET /v1/ads': (db, req) => publicAd(pickAd(req.query.get('region') || 'global')),
 
     'POST /v1/ads/event': async (db, req, body) => {
       const s = await auth(db, req);
       const a = ADS.find((x) => x.id === body.ad) || fail(404, 'unknown_ad');
-      const kind = body.kind === 'click' ? 'click' : 'view';
-      const k = `${s.id}:${a.id}:${kind}`;
-      if (adSeen.has(k)) return { counted: false };
-      const d = day();
-      const blocked = await fraud.adBlock(db, s, kind, d);
-      if (blocked) return { counted: false, reason: blocked };
-      adSeen.set(k, Date.now());
-      const v = kind === 'view' ? 1 : 0, c = kind === 'click' ? 1 : 0;
-      const usd = kind === 'view' ? CPM_USD / 1000 : CPC_USD;
-      await db.run(`INSERT INTO ad_stats (day, ad, views, clicks) VALUES (?, ?, ?, ?)
-        ON CONFLICT (day, ad) DO UPDATE SET views = ad_stats.views + excluded.views, clicks = ad_stats.clicks + excluded.clicks`, d, a.id, v, c);
-      await db.run(`INSERT INTO revenue (day, estimated_usd) VALUES (?, ?)
-        ON CONFLICT (day) DO UPDATE SET estimated_usd = revenue.estimated_usd + excluded.estimated_usd`, d, usd);
-      // Per-member count only (no ad or site detail), so members can see the revenue they helped generate.
-      await db.run(`INSERT INTO member_ads (sid, day, views, clicks, usd) VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (sid, day) DO UPDATE SET views = member_ads.views + excluded.views, clicks = member_ads.clicks + excluded.clicks, usd = member_ads.usd + excluded.usd`,
-        s.id, d, v, c, usd);
-      return { counted: true };
+      return countAd(db, s, a, body.kind === 'click' ? 'click' : 'view');
     },
 
     'GET /v1/pool': async (db, req) => {

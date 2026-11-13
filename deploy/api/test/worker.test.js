@@ -47,7 +47,7 @@ before(async () => {
   const agentUrl = `http://127.0.0.1:${agentSrv.address().port}`;
   env = {
     // These tests cover the API itself; Cumulus ID sign-in (on by default in production) has its own test below.
-    NODE_ENV: 'production', CID_REQUIRED: '0', TOKEN_SECRET: 'test-token-secret-0123456789abcdef', AGENT_SECRET, ADMIN_KEY, FRAUD_NET_MAX: '2',
+    NODE_ENV: 'production', CID_REQUIRED: '0', PASS_REQUIRED: '0', TOKEN_SECRET: 'test-token-secret-0123456789abcdef', AGENT_SECRET, ADMIN_KEY, FRAUD_NET_MAX: '2',
     NODES: JSON.stringify([{ id: 'ams', city: 'Amsterdam', country: 'NL', flag: '🇳🇱', region: 'eu', agentUrl,
       proxy: { scheme: 'https', host: 'ams.example', port: 443 }, wg: { endpoint: 'ams.example:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true }]),
   };
@@ -251,4 +251,34 @@ test('production: sessions need no sign-in by default; with CID_REQUIRED=1 they 
   const rows = await db.all('SELECT account FROM sessions WHERE account IS NOT NULL');
   assert.equal(new Set(rows.map((r) => r.account)).size, 1);
   assert.ok(!JSON.stringify(rows).includes('cid_carol'));
+});
+
+test('start-up ad pass: connect needs a pass, earned only after the ad has run, tied to its session', async () => {
+  const e = { ...env, PASS_REQUIRED: undefined, PASS_AD_SECONDS: '2' };   // production default: pass required
+  const w = makeWorker(() => ({ db, close: async () => {} }));
+  const post = async (path, body, { token, device = 'worker-pass-device-1' } = {}) => {
+    const r = await w.fetch(new Request(`https://api.test${path}`, { method: 'POST', body: JSON.stringify(body || {}),
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.30', 'x-veil-device': device, ...(token && { authorization: `Bearer ${token}` }) } }), e, { waitUntil: () => {} });
+    return { status: r.status, body: await r.json() };
+  };
+  const tok = (await post('/v1/session')).body.token;
+  assert.deepEqual(await post('/v1/connect', { server: 'ams' }, { token: tok }), { status: 402, body: { error: 'pass_required' } });
+  const chk = await post('/v1/pass/check', {}, { token: tok });
+  assert.deepEqual(chk.body, { required: true, exp: 0 });
+  const st = await post('/v1/pass/start', { region: 'eu' }, { token: tok });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.equal(st.body.seconds, 2); assert.equal(st.body.hours, 24); assert.ok(st.body.ad.title); assert.equal(st.body.ad.regions, undefined);
+  assert.equal((await post('/v1/pass/finish', { ticket: st.body.ticket }, { token: tok })).body.error, 'ad_not_finished');
+  assert.equal((await post('/v1/pass/finish', { ticket: 'forged.ticket' }, { token: tok })).body.error, 'bad_ticket');
+  await new Promise((r) => setTimeout(r, 1100));
+  const fin = await post('/v1/pass/finish', { ticket: st.body.ticket }, { token: tok });
+  assert.equal(fin.status, 200, JSON.stringify(fin.body));
+  assert.ok(fin.body.exp > Date.now() + 23 * 3_600_000);
+  assert.equal((await post('/v1/pass/check', { pass: fin.body.pass }, { token: tok })).body.exp, fin.body.exp);
+  const c = await post('/v1/connect', { server: 'ams', pass: fin.body.pass }, { token: tok });
+  assert.equal(c.status, 200, JSON.stringify(c.body));
+  // Another session cannot use this pass, nor this ticket.
+  const other = (await post('/v1/session', {}, { device: 'worker-pass-device-2' })).body.token;
+  assert.equal((await post('/v1/connect', { server: 'ams', pass: fin.body.pass }, { token: other, device: 'worker-pass-device-2' })).status, 402);
+  assert.equal((await post('/v1/pass/finish', { ticket: st.body.ticket }, { token: other, device: 'worker-pass-device-2' })).body.error, 'bad_ticket');
 });

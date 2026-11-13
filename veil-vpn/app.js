@@ -44,8 +44,21 @@ function demoBackend() {
       if (S.sec % 15 === 0) save();
     }
   };
+  const PASS_KEY = 'veil-vpn-demo-pass';
   return {
     mode: 'demo',
+    passStatus: async () => { let exp = 0; try { exp = Number(localStorage.getItem(PASS_KEY)) || 0; } catch { /* none */ } return { required: true, exp }; },
+    passStart: async () => {
+      const a = ADS[Math.floor(Math.random() * ADS.length)];
+      return { ad: { ...a, sponsor: 'Infinitum' }, seconds: 15, ticket: String(Date.now()), hours: 24 };
+    },
+    async passFinish(ticket) {
+      if (Date.now() - Number(ticket) < 14_000) throw new Error('ad_not_finished');
+      const exp = Date.now() + 24 * 3_600_000;
+      try { localStorage.setItem(PASS_KEY, String(exp)); } catch { /* storage unavailable */ }
+      S.views++; save();
+      return { exp };
+    },
     servers: async () => SERVERS,
     state: async () => conn,
     ip: (on) => `${on ? 185 : 203}.${oct(7)}.${oct(131)}.${oct(4099)}`,
@@ -135,6 +148,9 @@ function liveBackend() {
     revenue: () => call('revenue'),
     blocked: () => call('blocked'),
     ad: (region) => call('ad', { region }),
+    passStatus: () => call('passStatus'),
+    passStart: (region) => call('passStart', { region }),
+    passFinish: (ticket) => call('passFinish', { ticket }),
     adEvent: (ad, kind) => call('adEvent', { ad, kind }),
     setWallet: (address) => call('wallet', { address }),
     claim: () => call('claim'),
@@ -184,7 +200,7 @@ const cc = (flag = '') => [...flag].map((c) => c.codePointAt(0) - 0x1f1e6).filte
 const plural = (n, w) => `${fmtInt(n)} ${w}${Math.round(n) === 1 ? '' : 's'}`;
 const pct = (w) => (!w ? '0%' : w < 1e-4 ? '<0.01%' : `${(w * 100).toPrecision(2)}%`);
 const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
-const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', sign_in_required: 'Sign in with your Cumulus ID', cid_unreachable: 'Cumulus ID could not be reached. Try again', cid_failed: 'Sign-in did not finish. Try again', cid_mismatch: 'That sign-in did not match. Try again', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
+const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', sign_in_required: 'Try again in a moment', pass_required: 'Watch one short ad to unlock 24 hours of VEIL', ad_not_finished: 'Let the ad finish first', bad_ticket: 'That ad expired. Watch a new one', cid_unreachable: 'Cumulus ID could not be reached. Try again', cid_failed: 'Sign-in did not finish. Try again', cid_mismatch: 'That sign-in did not match. Try again', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
 
 // ---------------------------------------------------------------- state
 let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = null;
@@ -278,7 +294,7 @@ power.addEventListener('click', async (e) => {
     if (my !== attempt) return;
     conn = next; paintConn();
     loadAd();
-  } catch (e) { if (my !== attempt) return; conn = { state: 'off' }; paintConn(); toast(errText(e)); }
+  } catch (e) { if (my !== attempt) return; conn = { state: 'off' }; paintConn(); toast(errText(e)); if (e.message === 'pass_required') showGate(); }
 });
 $('#location-btn').addEventListener('click', () => { location.hash = 'servers'; });
 function renderLoc() {
@@ -320,6 +336,58 @@ $('#ad-body').addEventListener('click', () => {
   if (currentAd.url) window.open(currentAd.url, '_blank', 'noopener');
 });
 setInterval(loadAd, 30_000);
+
+// ---------------------------------------------------------------- start-up ad gate
+// VEIL VPN is free with no sign-in: one curated ad on start-up unlocks 24 hours. The server signs a
+// ticket when the ad starts and gives the pass only after the ad has run its full time.
+let gateOpen = false;
+async function showGate() {
+  if (gateOpen) return;
+  gateOpen = true;
+  const gate = $('#gate'), go = $('#gate-go'), label = $('#gate-label'), fill = $('#gate-fill');
+  gate.hidden = false; go.disabled = true; label.textContent = 'Loading…'; fill.style.width = '0%';
+  let t;
+  for (let wait = 2000; ; wait = Math.min(wait * 2, 30_000)) {
+    try { t = await api.passStart(srv(selected)?.region || 'global'); break; }
+    catch { label.textContent = 'Offline. Retrying…'; await new Promise((r) => setTimeout(r, wait)); }
+  }
+  const a = t.ad || {};
+  $('#gate-mark').textContent = a.mark || '';
+  $('#gate-title').textContent = a.title || '';
+  $('#gate-body').textContent = a.body || '';
+  $('#gate-sponsor').textContent = a.sponsor ? `Sponsored by ${a.sponsor}` : 'Sponsored';
+  const link = $('#gate-ad');
+  if (a.url && /^https:\/\//.test(a.url)) link.href = a.url; else link.removeAttribute('href');
+  link.onclick = () => { if (a.id) api.adEvent(a.id, 'click').catch(() => {}); };
+  const start = Date.now(), ms = (t.seconds || 15) * 1000;
+  await new Promise((done) => {
+    const tick = () => {
+      const left = Math.max(0, ms - (Date.now() - start));
+      fill.style.width = `${Math.min(100, (1 - left / ms) * 100)}%`;
+      if (left > 0) { label.textContent = `Free access in ${Math.ceil(left / 1000)} s`; return setTimeout(tick, 250); }
+      done();
+    };
+    tick();
+  });
+  label.textContent = `Continue, free for ${t.hours || 24} hours`; go.disabled = false;
+  await new Promise((done) => {
+    go.onclick = async () => {
+      go.disabled = true; label.textContent = 'Unlocking…';
+      try { await api.passFinish(t.ticket); done(); }
+      catch (e) {
+        if (e.message === 'ad_not_finished') setTimeout(() => go.onclick(), 1500);
+        else if (e.message === 'bad_ticket') { gate.hidden = true; gateOpen = false; showGate(); }
+        else { toast(errText(e)); go.disabled = false; label.textContent = 'Try again'; }
+      }
+    };
+  });
+  gate.hidden = true; gateOpen = false;
+  toast(`VEIL is unlocked for ${t.hours || 24} hours`);
+}
+async function checkPass() {
+  const p = await api.passStatus().catch(() => null);
+  if (p?.required && !(p.exp > Date.now() + 60_000)) showGate();
+}
 
 // ---------------------------------------------------------------- earn view
 // Why the server stopped crediting minutes (fraud protection), in plain words.
@@ -542,6 +610,7 @@ async function loadServers() {
   } finally { serversBusy = false; }
 }
 retryServers = () => { if (!servers.length) loadServers(); };
+checkPass();
 await loadServers(); renderLoc(); renderServers(); paintConn(); if (!gated) renderToday(); loadAd(); route();
 statTimer = setInterval(async () => {
   if (gated) return;
