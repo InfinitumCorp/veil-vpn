@@ -194,9 +194,8 @@ const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 // ---------------------------------------------------------------- Cumulus ID
 // The app and the extension sign in with Cumulus ID (id.cumuluscloud.app, or the mirror the build
 // names). Sign-in is required: signed out, the app shows only the sign-in screen (Sign in with
-// Cumulus ID, Create a Cumulus ID), and the "Sign in" link in the top-right corner offers the same two
-// choices. "Create a Cumulus ID" opens the same sign-in with the issuer's sign-up page first; either
-// way the person comes back here signed in.
+// Cumulus ID, Create a Cumulus ID). "Create a Cumulus ID" opens the same sign-in with the issuer's
+// sign-up page first; either way the person comes back here signed in.
 let account = { signedIn: !LIVE };
 if (LIVE) { try { account = await api.account(); } catch { account = { signedIn: false }; } }
 let gated = !account.signedIn;
@@ -207,22 +206,13 @@ function signedOut() {
   document.documentElement.classList.add('signed-out');
   paintAccount(); route();
 }
-const signinLink = $('#signin-link'), signinPop = $('#signin-pop');
-function openSignIn(open = true) {
-  signinPop.hidden = !open;
-  signinLink.setAttribute('aria-expanded', String(open));
-  if (open) $('#cid-signin').focus();
-}
-signinLink.addEventListener('click', (e) => { e.stopPropagation(); openSignIn(signinPop.hidden); });
-document.addEventListener('click', (e) => { if (!signinPop.hidden && !signinPop.contains(e.target)) openSignIn(false); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !signinPop.hidden) { openSignIn(false); signinLink.focus(); } });
 function paintAccount() {
   const p = account.signedIn && !account.demo ? account.profile || {} : null;
   $('#account-row').hidden = !p;
   if (p) $('#account-who').textContent = p.email || p.username || 'Signed in';
 }
-const cidButtons = () => [$('#cid-signin'), $('#cid-create'), $('#gate-signin'), $('#gate-create')];
-const cidStatus = (text) => { $('#cid-status').textContent = text; $('#gate-status').textContent = text; };
+const cidButtons = () => [$('#gate-signin'), $('#gate-create')];
+const cidStatus = (text) => { $('#gate-status').textContent = text; };
 async function startSignIn(create) {
   cidStatus(create ? 'Opening Cumulus ID to create your ID.' : 'Opening Cumulus ID.');
   cidButtons().forEach((b) => { b.disabled = true; });
@@ -230,8 +220,6 @@ async function startSignIn(create) {
   catch (e) { cidStatus(errText(e)); }
   finally { setTimeout(() => cidButtons().forEach((b) => { b.disabled = false; }), 1500); }
 }
-$('#cid-signin').addEventListener('click', () => startSignIn(false));
-$('#cid-create').addEventListener('click', () => startSignIn(true));
 $('#gate-signin').addEventListener('click', () => startSignIn(false));
 $('#gate-create').addEventListener('click', () => startSignIn(true));
 $('#cid-signout').addEventListener('click', async () => {
@@ -324,7 +312,7 @@ async function renderToday() {
 }
 let attempt = 0;   // a cancelled connect must not repaint when its answer arrives late
 power.addEventListener('click', async (e) => {
-  if (gated) { e.stopPropagation(); openSignIn(); return; }   // connecting needs a Cumulus ID
+  if (gated) { route(); return; }   // connecting needs a Cumulus ID: back to the sign-in screen
   const my = ++attempt;
   try {
     // Connected, reconnecting or still waiting for the first handshake: the button stops the tunnel.

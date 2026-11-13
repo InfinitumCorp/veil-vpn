@@ -228,17 +228,8 @@ html.ext .toast{bottom:80px}
 .location{text-align:left}.location #loc-name{flex:1}
 .brand .tm{font-size:.38em;vertical-align:super;line-height:0;margin-left:.08em;letter-spacing:0;font-weight:400}
 /* Cumulus ID sign-in: the same type and buttons as the rest of the app. */
-/* Sign in: a link in the top-right corner while signed out, with a small panel for the two Cumulus ID choices */
-.signin-wrap{position:relative}
 /* Signed out: only the sign-in screen; the tabs come back once signed in. */
 html.signed-out nav.tabs,html.signed-out nav.bottom{display:none}
 .gate-actions{flex-wrap:wrap}
 #gate-status:empty{display:none}
-html:not(.signed-out) .signin-wrap{display:none}
-.signin-link{background:none;border:0;padding:8px 0;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:4px;white-space:nowrap}
-.signin-pop{position:absolute;right:0;top:calc(100% + 10px);width:min(300px,calc(100vw - 32px));display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--paper);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.08)}
-.signin-pop[hidden]{display:none}
-.signin-pop button{width:100%}
-.signin-pop .fine{margin:0}
-.signin-pop .fine:empty{display:none}
 .account-row small{overflow-wrap:anywhere}
