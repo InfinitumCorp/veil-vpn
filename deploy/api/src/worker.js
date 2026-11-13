@@ -7,6 +7,7 @@
 //   vars     NODE_ENV=production, optional CPM_USD, CPC_USD, FRAUD_* tuning,
 //            CID_ISSUER (Cumulus ID issuer or its mirror, default https://id.cumuluscloud.app),
 //            CID_REQUIRED (default 0: anyone may use VEIL VPN without signing in; 1 requires Cumulus ID)
+//            VLESS_IDS (optional): {"<node id>": "<VLESS uuid>"} for nodes with VLESS Reality (see withVlessIds)
 //   servers  deploy/api/nodes.json, bundled into the Worker (a text var is capped at 5.1 kB, and each
 //            server's entry is ~1.8 kB). An env NODES (JSON array) overrides it; the tests use that.
 // Client IPs (cf-connecting-ip) are used only in memory for rate limits and the daily-keyed
@@ -30,11 +31,27 @@ export function openPostgres(env) {
   return { db: postgresAdapter(sql, env.DB_SCHEMA || 'veil_vpn'), close: () => sql.end({ timeout: 5 }) };
 }
 
+// VLESS Reality: nodes.json (public, in git) carries each node's public Reality details, but not the VLESS user id,
+// which is a node secret. The ids come from the VLESS_IDS secret, {"<node id>": "<uuid>", ...}. A node without an
+// id there offers no VLESS (clients fall back to its HTTPS proxy).
+export function withVlessIds(nodes, idsJson) {
+  let ids = {};
+  if (idsJson) {
+    try { ids = typeof idsJson === 'string' ? JSON.parse(idsJson) : idsJson; } catch { console.error('VLESS_IDS is not JSON'); }
+  }
+  return nodes.map((n) => {
+    if (!n.vless) return n;
+    const id = n.vless.id || ids[n.id];
+    if (!id) { const { vless, ...rest } = n; return rest; }
+    return { ...n, vless: { ...n.vless, id } };
+  });
+}
+
 export function makeWorker(openDb = openPostgres, { fetchFn = fetch } = {}) {
   let control = null; // one per isolate: holds node health, rate limits and dedupe maps
   const get = (env) => control ??= createControl({
     env: (k, d) => (env[k] ?? d),
-    nodes: typeof env.NODES === 'string' ? JSON.parse(env.NODES) : (env.NODES || bundledNodes),
+    nodes: withVlessIds(typeof env.NODES === 'string' ? JSON.parse(env.NODES) : (env.NODES || bundledNodes), env.VLESS_IDS),
     ads,
     fetchFn: (...a) => fetchFn(...a),
   });

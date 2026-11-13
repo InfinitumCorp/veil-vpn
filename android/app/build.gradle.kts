@@ -99,6 +99,8 @@ tasks.matching { it.name.matches(Regex("(assemble|bundle)Release")) }.configureE
 
 dependencies {
     implementation("com.wireguard.android:tunnel:1.0.20230706")
+    // Xray-core for VLESS Reality and the HTTPS-proxy tunnel: built by scripts/build-xray-aar.ps1 (gitignored).
+    implementation(files("libs/veilxray.aar"))
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.1")
