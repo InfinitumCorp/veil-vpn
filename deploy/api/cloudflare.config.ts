@@ -11,6 +11,8 @@ export default defineConfig({
     domains: ["api.infinitumveilvpn.app"],
     env: {
       NODE_ENV: bindings.text("production"),
+      // No sign-in: anyone may use VEIL VPN without a Cumulus ID (William, 2026-11-13).
+      CID_REQUIRED: bindings.text("0"),
       // VPN servers: deploy/api/nodes.json is bundled into the Worker by src/worker.js (a text var
       // is capped at 5.1 kB, too small for more than two servers). Each entry is what
       // node/provision.sh prints; the OpenVPN CA and tls-crypt key are public client material.

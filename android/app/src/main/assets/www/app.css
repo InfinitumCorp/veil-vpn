@@ -229,7 +229,3 @@ html.ext .toast{bottom:80px}
 .brand .tm{font-size:.38em;vertical-align:super;line-height:0;margin-left:.08em;letter-spacing:0;font-weight:400}
 /* Cumulus ID sign-in: the same type and buttons as the rest of the app. */
 /* Signed out: only the sign-in screen; the tabs come back once signed in. */
-html.signed-out nav.tabs,html.signed-out nav.bottom{display:none}
-.gate-actions{flex-wrap:wrap}
-#gate-status:empty{display:none}
-.account-row small{overflow-wrap:anywhere}

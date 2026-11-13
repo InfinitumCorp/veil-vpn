@@ -41,8 +41,19 @@ class ControlApi(context: Context) {
         }
     }
 
-    /** The session comes from signing in with Cumulus ID ([CidSignIn]); there is no anonymous one. */
+    /** The stored session: tied to a Cumulus ID after signing in ([CidSignIn]), otherwise anonymous. */
     private fun session(): String? = prefs.getString("session", null)
+
+    /** Anyone may use VEIL VPN without signing in: with no session yet, this gets an anonymous one. */
+    @Synchronized
+    private fun anonSession(): String {
+        session()?.let { return it }
+        val (code, j) = raw("POST", "/v1/session", JSONObject(), null)
+        if (code != 200 || !j.has("token")) throw ApiError(j.optString("error", "session_$code"))
+        val token = j.getString("token")
+        prefs.edit().putString("session", token).apply()
+        return token
+    }
 
     /** Gives a Cumulus ID access token to the control server once; it returns this device's session. */
     @Synchronized
@@ -52,13 +63,14 @@ class ControlApi(context: Context) {
         prefs.edit().putString("session", j.getString("token")).apply()
     }
 
-    fun call(method: String, path: String, body: JSONObject? = null): JSONObject {
+    fun call(method: String, path: String, body: JSONObject? = null, retried: Boolean = false): JSONObject {
         val open = method == "GET" && (path == "/v1/servers" || path == "/v1/pool" || path.startsWith("/v1/ads?"))
-        val token = session() ?: if (open) null else throw ApiError("sign_in_required")
+        val token = session() ?: if (open) null else anonSession()
         val (code, j) = raw(method, path, body, token)
-        // The server no longer accepts this session: the person signs in again.
+        // The server no longer accepts this session: drop it and carry on with a fresh anonymous one.
         if (code == 401) {
             prefs.edit().remove("session").remove("cid_profile").apply()
+            if (!retried) return call(method, path, body, true)
             throw ApiError("sign_in_required")
         }
         if (code !in 200..299) throw ApiError(j.optString("error", "http_$code"))

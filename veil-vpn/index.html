@@ -30,17 +30,6 @@
 </header>
 
 <main id="main">
-  <!-- SIGN IN: the only screen until someone signs in with Cumulus ID -->
-  <section class="view" id="view-signin" aria-labelledby="h-signin" hidden>
-    <div class="context"><span>VEIL VPN</span><span>Cumulus ID</span></div>
-    <h1 id="h-signin">Sign in to use VEIL VPN.<span class="grey">One Cumulus ID for every Infinitum app.</span></h1>
-    <div class="actions gate-actions">
-      <button class="primary" id="gate-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
-      <button class="ghost" id="gate-create" type="button">Create a Cumulus ID</button>
-    </div>
-    <p class="fine" id="gate-status" role="status" aria-live="polite"></p>
-  </section>
-
   <!-- CONNECT -->
   <section class="view" id="view-connect" aria-labelledby="h-connect">
     <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>
@@ -138,7 +127,6 @@
     <div class="context"><span>Settings</span><span>On this device</span></div>
     <h2 id="h-settings">Settings.</h2>
     <ul class="settings">
-      <li class="account-row" id="account-row" hidden><span>Cumulus ID <small id="account-who"></small></span><button class="ghost" id="cid-signout" type="button">Sign out</button></li>
       <li><span>Block trackers <small>Ads, analytics and data collectors, for every app</small></span><label class="switch"><input type="checkbox" data-set="block" checked><span></span><b class="sr">Block trackers</b></label></li>
       <li class="android-only" hidden><span>Unsafe network alerts <small>A notification when you join Wi-Fi while not protected</small></span><label class="switch"><input type="checkbox" data-set="alerts" checked><span></span><b class="sr">Unsafe network alerts</b></label></li>
       <li><span>Kill switch</span><label class="switch"><input type="checkbox" data-set="kill" checked><span></span><b class="sr">Kill switch</b></label></li>

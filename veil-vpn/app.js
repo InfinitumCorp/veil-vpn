@@ -191,58 +191,15 @@ let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = nu
 let down = 0, up = 0, statTimer = null;
 const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 
-// ---------------------------------------------------------------- Cumulus ID
-// The app and the extension sign in with Cumulus ID (id.cumuluscloud.app, or the mirror the build
-// names). Sign-in is required: signed out, the app shows only the sign-in screen (Sign in with
-// Cumulus ID, Create a Cumulus ID). "Create a Cumulus ID" opens the same sign-in with the issuer's
-// sign-up page first; either way the person comes back here signed in.
-let account = { signedIn: !LIVE };
-if (LIVE) { try { account = await api.account(); } catch { account = { signedIn: false }; } }
-let gated = !account.signedIn;
-document.documentElement.classList.toggle('signed-out', gated);
-function signedOut() {
-  if (gated) return;
-  gated = true; account = { signedIn: false };
-  document.documentElement.classList.add('signed-out');
-  paintAccount(); route();
-}
-function paintAccount() {
-  const p = account.signedIn && !account.demo ? account.profile || {} : null;
-  $('#account-row').hidden = !p;
-  if (p) $('#account-who').textContent = p.email || p.username || 'Signed in';
-}
-const cidButtons = () => [$('#gate-signin'), $('#gate-create')];
-const cidStatus = (text) => { $('#gate-status').textContent = text; };
-async function startSignIn(create) {
-  cidStatus(create ? 'Opening Cumulus ID to create your ID.' : 'Opening Cumulus ID.');
-  cidButtons().forEach((b) => { b.disabled = true; });
-  try { await api.signIn(create); cidStatus('Finish in the browser, then come back here.'); }
-  catch (e) { cidStatus(errText(e)); }
-  finally { setTimeout(() => cidButtons().forEach((b) => { b.disabled = false; }), 1500); }
-}
-$('#gate-signin').addEventListener('click', () => startSignIn(false));
-$('#gate-create').addEventListener('click', () => startSignIn(true));
-$('#cid-signout').addEventListener('click', async () => {
-  try { await api.signOut(); } catch { /* signed out on this device anyway */ }
-  location.reload();
-});
-// Back from the browser (Android resumes the app; the extension popup reopens): check again.
-async function recheck() {
-  if (!gated || !LIVE) return;
-  const a = await api.account().catch(() => null);
-  if (a?.signedIn) location.reload();
-  else if (a?.error) cidStatus(errText(new Error(a.error)));
-}
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recheck(); });
-window.__veilSignedIn = recheck;   // Android calls this when the sign-in link comes back
-paintAccount();
+// ---------------------------------------------------------------- no sign-in
+// VEIL VPN needs no account. The app and the extension make an anonymous session on first use
+// (ControlApi.kt, extension/background.js) and every screen works without signing in.
+const gated = false;
+function signedOut() { /* the backend makes a fresh anonymous session on its next call */ }
 
 // ---------------------------------------------------------------- navigation
 const VIEWS = ['connect', 'servers', 'earn', 'revenue', 'settings'];
 const route = () => {
-  // Signed out: only the sign-in screen. Every other screen needs a Cumulus ID.
-  $('#view-signin').hidden = !gated;
-  if (gated) { VIEWS.forEach((n) => { $(`#view-${n}`).hidden = true; }); window.scrollTo(0, 0); return; }
   const h = location.hash.slice(1) === 'community' ? 'revenue' : location.hash.slice(1);
   const v = VIEWS.includes(h) ? h : 'connect';
   VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
@@ -312,7 +269,6 @@ async function renderToday() {
 }
 let attempt = 0;   // a cancelled connect must not repaint when its answer arrives late
 power.addEventListener('click', async (e) => {
-  if (gated) { route(); return; }   // connecting needs a Cumulus ID: back to the sign-in screen
   const my = ++attempt;
   try {
     // Connected, reconnecting or still waiting for the first handshake: the button stops the tunnel.
