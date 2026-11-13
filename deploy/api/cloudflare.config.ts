@@ -7,6 +7,8 @@ export default defineConfig({
     name: "veil-vpn-api",
     entrypoint: "./src/worker.js",
     compatibilityDate: "2026-11-04",
+    // Global users run on US servers (Ashburn, Virginia); Russia is served by the ru.* copies on Yandex Cloud.
+    placement: { region: "gcp:us-east4" },
     compatibilityFlags: ["nodejs_compat"],
     domains: ["api.infinitumveilvpn.app"],
     env: {
