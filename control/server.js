@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS epochs (day TEXT PRIMARY KEY, members INTEGER, minute
 CREATE TABLE IF NOT EXISTS payouts (sid TEXT, day TEXT, minutes INTEGER, base_veil REAL, pool_usd REAL, pool_veil REAL, status TEXT NOT NULL DEFAULT 'accrued', wallet TEXT, PRIMARY KEY (sid, day));
 CREATE TABLE IF NOT EXISTS net_day (day TEXT, net TEXT, sid TEXT, PRIMARY KEY (day, net, sid));
 `);
-for (const col of ['device_hash TEXT', 'platform TEXT', "flags TEXT NOT NULL DEFAULT ''", 'account TEXT']) {
+for (const col of ['device_hash TEXT', 'platform TEXT', "flags TEXT NOT NULL DEFAULT ''", 'account TEXT', 'premium_until INTEGER NOT NULL DEFAULT 0']) {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN ${col}`); } catch { /* already there */ }
 }
 db.exec('CREATE INDEX IF NOT EXISTS sessions_device ON sessions (device_hash); CREATE INDEX IF NOT EXISTS sessions_wallet ON sessions (wallet); CREATE INDEX IF NOT EXISTS sessions_account ON sessions (account);');

@@ -220,6 +220,16 @@ async function startSignIn(create) {
   finally { setTimeout(() => cidButtons().forEach((b) => { b.disabled = false; }), 1500); }
 }
 $('#cid-signin').addEventListener('click', () => startSignIn(false));
+// VEIL Premium: the server checks Premium at sign-in, so after paying, signing in again (instant
+// when Cumulus ID still has you signed in) turns the ads off on this device.
+$('#go-premium')?.addEventListener('click', () => { $('#premium-refresh').hidden = false; });
+$('#premium-refresh')?.addEventListener('click', async () => {
+  const b = $('#premium-refresh');
+  b.disabled = true;
+  try { await api.signIn?.(false); b.textContent = 'Finish in the browser, then come back here.'; }
+  catch (e) { b.textContent = errText(e); }
+  finally { setTimeout(() => { b.disabled = false; }, 1500); }
+});
 $('#cid-create').addEventListener('click', () => startSignIn(true));
 $('#cid-signout').addEventListener('click', async () => {
   try { await api.signOut(); } catch { /* signed out on this device anyway */ }
@@ -351,6 +361,9 @@ let currentAd = null;
 async function loadAd() {
   const a = await api.ad(srv(selected)?.region || 'global').catch(() => null);
   if (!a) return;
+  // VEIL Premium: no ad at all.
+  $('.ad').hidden = !!a.premium;
+  if (a.premium) { currentAd = null; return; }
   currentAd = a;
   $('#ad-body').innerHTML = `<span class="ad-logo">${a.mark}</span><p><strong>${a.title}</strong>${a.body}</p>`;
   if (conn.state === 'on' && document.visibilityState === 'visible') api.adEvent(a.id, 'view').catch(() => {});

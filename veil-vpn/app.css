@@ -98,6 +98,9 @@ dd small{font-size:13px;color:var(--muted)}
 .meter{height:2px;background:var(--line)}
 .meter span{display:block;height:100%;width:0;background:var(--accent);transition:width .6s}
 .ad{margin-top:32px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;display:flex;gap:32px;align-items:center}
+.ad{flex-wrap:wrap}
+#go-premium{text-decoration:underline}
+#premium-refresh{background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;font:inherit;font-size:13px;color:var(--muted)}
 .ad-body{display:flex;gap:16px;align-items:center;min-width:0;cursor:pointer}
 .ad-logo{width:32px;height:32px;flex:none;display:grid;place-items:center;border:1px solid var(--ink);font-size:12px}
 .ad-body p{margin:0;font-size:14px;color:var(--muted)}
