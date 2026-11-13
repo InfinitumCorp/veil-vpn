@@ -44,6 +44,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   const CPC_USD = Number(env('CPC_USD', 0.10));  // estimated revenue per click
   const TOKEN_TTL = Number(env('TOKEN_TTL_MS', 15 * 60_000));
   const MANUAL_TTL = Number(env('MANUAL_TTL_MS', 7 * 86_400_000));
+  // Countries whose networks block plain WireGuard; apps there start on AmneziaWG.
+  const OBFUSCATE = new Set(String(env('OBFUSCATE_COUNTRIES', 'RU,BY,IR,CN,TM')).split(',').map((x) => x.trim().toUpperCase()).filter(Boolean));
   const MODES = ['proxy', 'wireguard', 'amneziawg', 'ikev2', 'openvpn', ...PROXY_MODES];
   const DEV = env('NODE_ENV', 'development') !== 'production';
   // Cumulus ID. CID_ISSUER may point at a mirror (e.g. one reachable from Russia without a VPN).
@@ -305,7 +307,14 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     // Where clients send people to sign in (the issuer, or its mirror).
     'GET /v1/cid': () => ({ issuer: CID_ISSUER, client: 'veil-vpn', required: CID_REQUIRED }),
 
-    'GET /v1/servers': async () => { await freshHealth(); return { servers: NODES.map(publicNode) }; },
+    // `network`: the caller's country as Cloudflare sees it (never stored) and the VPN protocol to use there.
+    // Where DPI drops plain WireGuard after the handshake (Russia and others), apps should start on AmneziaWG.
+    'GET /v1/servers': async (db, req) => {
+      await freshHealth();
+      const cc = String(req.header('cf-ipcountry') || '').toUpperCase();
+      const country = /^[A-Z]{2}$/.test(cc) && cc !== 'XX' && cc !== 'T1' ? cc : null;
+      return { servers: NODES.map(publicNode), network: { country, recommend: country && OBFUSCATE.has(country) ? 'amneziawg' : 'wireguard' } };
+    },
 
     // The start-up ad: a curated ad and a ticket that is worth a pass once the ad has run its full time.
     'POST /v1/pass/start': async (db, req, body) => {

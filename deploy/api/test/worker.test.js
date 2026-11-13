@@ -282,3 +282,14 @@ test('start-up ad pass: connect needs a pass, earned only after the ad has run, 
   assert.equal((await post('/v1/connect', { server: 'ams', pass: fin.body.pass }, { token: other, device: 'worker-pass-device-2' })).status, 402);
   assert.equal((await post('/v1/pass/finish', { ticket: st.body.ticket }, { token: other, device: 'worker-pass-device-2' })).body.error, 'bad_ticket');
 });
+
+test('servers: the caller network decides the recommended protocol (country never stored)', async () => {
+  const get = async (cc) => {
+    const r = await worker.fetch(new Request('https://api.test/v1/servers', { headers: { 'cf-connecting-ip': '198.51.100.4', ...(cc && { 'cf-ipcountry': cc }) } }), env, { waitUntil: () => {} });
+    return (await r.json()).network;
+  };
+  assert.deepEqual(await get('RU'), { country: 'RU', recommend: 'amneziawg' });
+  assert.deepEqual(await get('de'), { country: 'DE', recommend: 'wireguard' });
+  assert.deepEqual(await get('XX'), { country: null, recommend: 'wireguard' });
+  assert.deepEqual(await get(), { country: null, recommend: 'wireguard' });
+});
