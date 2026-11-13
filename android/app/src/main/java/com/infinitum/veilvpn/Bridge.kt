@@ -75,6 +75,17 @@ class Bridge(
         "blocked" -> api.call("GET", "/v1/blocked").toString()
         "ad" -> api.call("GET", "/v1/ads?region=" + URLEncoder.encode(p.optString("region", "global"), "UTF-8")).toString()
         "adEvent" -> api.call("POST", "/v1/ads/event", JSONObject().put("ad", p.getString("ad")).put("kind", p.getString("kind"))).toString()
+        // The free-access gate: one curated ad on start-up unlocks 24 hours of VEIL VPN.
+        "passStatus" -> api.passExp().let { exp ->
+            if (exp > 0) JSONObject().put("required", true).put("exp", exp).toString()
+            else api.call("POST", "/v1/pass/check", JSONObject()).toString()
+        }
+        "passStart" -> api.call("POST", "/v1/pass/start", JSONObject().put("region", p.optString("region", "global"))).toString()
+        "passFinish" -> {
+            val r = api.call("POST", "/v1/pass/finish", JSONObject().put("ticket", p.getString("ticket")))
+            api.savePass(r.getString("pass"), r.getLong("exp"))
+            JSONObject().put("exp", r.getLong("exp")).toString()
+        }
         "wallet" -> api.call("POST", "/v1/wallet", JSONObject().put("address", p.opt("address") ?: JSONObject.NULL)).toString()
         "claim" -> api.call("POST", "/v1/claim").toString()
         // A set-up for another device (laptop, iPhone, router): WireGuard needs the public key the

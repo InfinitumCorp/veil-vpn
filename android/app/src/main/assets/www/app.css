@@ -98,9 +98,6 @@ dd small{font-size:13px;color:var(--muted)}
 .meter{height:2px;background:var(--line)}
 .meter span{display:block;height:100%;width:0;background:var(--accent);transition:width .6s}
 .ad{margin-top:32px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;display:flex;gap:32px;align-items:center}
-.ad{flex-wrap:wrap}
-#go-premium{text-decoration:underline}
-#premium-refresh{background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;font:inherit;font-size:13px;color:var(--muted)}
 .ad-body{display:flex;gap:16px;align-items:center;min-width:0;cursor:pointer}
 .ad-logo{width:32px;height:32px;flex:none;display:grid;place-items:center;border:1px solid var(--ink);font-size:12px}
 .ad-body p{margin:0;font-size:14px;color:var(--muted)}
@@ -231,6 +228,16 @@ html.ext .toast{bottom:80px}
 .location{text-align:left}.location #loc-name{flex:1}
 .brand .tm{font-size:.38em;vertical-align:super;line-height:0;margin-left:.08em;letter-spacing:0;font-weight:400}
 /* Cumulus ID sign-in: the same type and buttons as the rest of the app. */
-.signin-lead{color:var(--muted);font-size:15px;line-height:1.5;max-width:52ch;margin:0 0 28px}
-html.signed-out .tabs,html.signed-out nav.bottom{visibility:hidden}
-.account-row small{overflow-wrap:anywhere}
+/* Signed out: only the sign-in screen; the tabs come back once signed in. */
+
+/* Start-up ad gate: one curated ad unlocks 24 hours of free access. */
+.gate{position:fixed;inset:0;z-index:100;background:var(--paper);display:grid;place-items:center;padding:16px;overflow:auto}
+.gate[hidden]{display:none}
+.gate-box{width:100%;max-width:520px}
+.gate-box h2{font-size:clamp(26px,5vw,40px);font-weight:400;line-height:1.1;letter-spacing:-.02em;margin:8px 0 28px}
+.gate-ad{display:flex;gap:16px;align-items:flex-start;color:inherit;text-decoration:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0}
+.gate-ad strong{display:block;font-weight:400;color:var(--ink);font-size:18px}
+.gate-ad span span{display:block;color:var(--muted);font-size:14px}
+.gate-ad small{display:block;color:var(--grey);font-size:12px;margin-top:6px}
+.gate .meter{margin:20px 0}
+.gate .primary{width:100%}

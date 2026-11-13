@@ -29,7 +29,8 @@ cp .env.example .env        # then replace the three secrets
 npm test                    # 38 tests, including a local Xray smoke test
 npm run node                # terminal 1: VPN node on :9100, agent on :9101
 npm run control             # terminal 2: control server on :8787
-npm run build               # builds dist/extension and dist/firefox, pointing at http://127.0.0.1:8787
+CONTROL_URL=http://127.0.0.1:8787 npm run build   # dist/extension and dist/firefox against this local control server
+                                                  # (plain `npm run build` points at the live API)
 ```
 
 Load the extension: open `chrome://extensions` (or `edge://extensions`), turn on Developer mode,
@@ -178,8 +179,9 @@ dl.google.com is blocked) or `-PmavenRelay=http://127.0.0.1:8899` (a local relay
 curl, when Java TLS downloads keep getting cut). With the relay, also pass
 `-Dorg.gradle.internal.http.socketTimeout=600000`.
 
-Or open the `android/` folder in Android Studio and press Run. The debug build talks to
-`http://10.0.2.2:8787`, which is your PC as seen from the Android emulator.
+Or open the `android/` folder in Android Studio and press Run. Every build talks to the live API,
+`https://api.infinitumveilvpn.app`. To use a local control server from the emulator instead, build with
+`-PveilControlUrl=http://10.0.2.2:8787` (10.0.2.2 is your PC as seen from the emulator).
 
 Testing a full connection needs a real WireGuard node (a Linux server from `node/provision.sh`).
 Without one, the app correctly stays on **Connecting…** because no handshake happens.
@@ -214,9 +216,11 @@ On by default for everyone; Settings → "Block trackers" turns it off (the app 
 ## Sign in with Cumulus ID
 
 The Android app and the browser extensions sign people in with Cumulus ID (Infinitum's one sign-in,
-`id.cumuluscloud.app`). There is no VEIL password, PIN or anonymous account. Until someone signs in, the
-app shows only the sign-in screen: **Sign in with Cumulus ID** and **Create a Cumulus ID** (the same
-authorize request with `prompt=create`; Cumulus ID's page offers sign-up and comes back signed in).
+`id.cumuluscloud.app`). There is no VEIL password or PIN. **Signing in is optional: anyone can use VEIL VPN
+without logging in.** With no sign-in, the app and the extension get an anonymous session and every feature
+works, including connecting. The **Sign in** link at the top stays, and opens **Sign in with Cumulus ID** and
+**Create a Cumulus ID** (the same authorize request with `prompt=create`; Cumulus ID's page offers sign-up and
+comes back signed in). Signing in ties the person's devices to one account.
 
 - **Flow.** OAuth 2.0 code + PKCE, client `veil-vpn`. The app opens `/api/id/authorize` in a Custom Tab
   (Android) or a new tab (extension). Cumulus ID returns to `https://infinitumveilvpn.app/app-signin/?to=<app>`
@@ -227,9 +231,8 @@ authorize request with `prompt=create`; Cumulus ID's page offers sign-up and com
   `POST /v1/session { cid_token }`.
 - **Server.** `core.js` asks the issuer's `/api/id/userinfo` who the token belongs to and stores only
   `sessions.account`, an HMAC of the CID. Each device gets its own session token; all sessions with one account
-  share the balance, today's minutes, the wallet, the daily limit and the epoch cap. Production
-  (`CID_REQUIRED`, default on when `NODE_ENV=production`) refuses sessions without a Cumulus ID, and an older
-  unsigned session gets `401 sign_in_required`, which brings the app back to the sign-in screen.
+  share the balance, today's minutes, the wallet, the daily limit and the epoch cap. Sessions without a
+  Cumulus ID are accepted. Setting `CID_REQUIRED=1` (default `0`) would refuse them again; leave it off.
 - **Russia / mirrors.** The issuer is configurable everywhere: `CID_ISSUER` on the control server and for
   `scripts/build.mjs` (extension) and `scripts/product-site.mjs` (site button, `data-issuer`), and
   `-PveilCidIssuer=https://...` for Android. Point all of them at the same mirror. `GET /v1/cid` reports the
@@ -332,7 +335,7 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   bypasses it for `api.infinitumveilvpn.app` only. The landing page stays gated until it is made public.
 - **Secrets** (Worker secrets, never in this repo): `TOKEN_SECRET`, `AGENT_SECRET`, `ADMIN_KEY`.
 - **Vars:** `NODES` is the server list (same JSON as `control/nodes.json`), empty until a VPN server exists.
-  `CID_ISSUER` (default `https://id.cumuluscloud.app`) and `CID_REQUIRED` (default `1` in production): see
+  `CID_ISSUER` (default `https://id.cumuluscloud.app`) and `CID_REQUIRED` (default `0`: no sign-in needed): see
   *Sign in with Cumulus ID*. Apply `supabase/migrations/20261111_veil_cid_account.sql` before deploying.
 - **Cron:** hourly purge of network tags older than 3 days.
 - **Memory-only state** (node health, rate limits, ad-event dedupe) is per Worker isolate. The fraud caps that
@@ -340,8 +343,7 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
 - **Tests:** `cd deploy/api && npm install && npm test` runs the Worker against real Postgres (PGlite) with the
   migration, including the postgres.js driver over the wire.
 - **Deploy:** `cd deploy/api && npx cf deploy` (creates the `api.infinitumveilvpn.app` DNS record), then set
-  the secrets, then build the apps with `-PveilControlUrl=https://api.infinitumveilvpn.app` /
-  `CONTROL_URL=https://api.infinitumveilvpn.app`.
+  the secrets. The apps point at `https://api.infinitumveilvpn.app` by default.
 
 ## Going to production
 
@@ -383,9 +385,13 @@ data in the shared Supabase project "Infinitum Corp" (schema `veil_vpn`, migrati
   job that sends queued balances to FIRM Wallet come after the legal review.
 - **Safari extension.**
 - **Placeholders to replace:** the demo ads in `control/ads.json`.
-- **Direct downloads:** `node scripts/package-downloads.mjs` copies the signed APK and the Chrome/Edge zip (with
-  `SHA256SUMS.txt`) into `dist/site/download/`; then `cf deploy` in `deploy/site`. Swap in store URLs in
-  `site/index.html` once the listings are live.
+- **Direct downloads:** `powershell -ExecutionPolicy Bypass -File scripts\release-android.ps1 -VersionCode <n>
+  -VersionName <x.y.z> -AdmobAppId <id> -AdmobBannerId <id> -Publish` builds the signed APK and AAB with the key in
+  `android/keystore/veil-upload.jks` (it asks for the password), refuses a debug-signed or wrong-version APK, then
+  puts `veil-vpn.apk`, the Chrome/Edge zip and the Firefox zip with `SHA256SUMS.txt` in `dist/site/download/` and
+  deploys the site. `-AllowTestAds` (without `-Publish`) is a dry run with Google's sample ads. `npm run build`
+  empties `dist/site`, so never `cf deploy` the site straight after a build: the downloads would go offline.
+  Swap in store URLs in `site/index.html` once the listings are live.
 
 ## Before launch
 

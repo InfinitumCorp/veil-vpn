@@ -27,18 +27,6 @@
 </header>
 
 <main id="main">
-  <!-- SIGN IN (app and extension: shown until the person signs in with Cumulus ID) -->
-  <section class="view signin" id="view-signin" aria-labelledby="h-signin" hidden>
-    <div class="context"><span>Cumulus ID</span><span>Infinitum's one sign-in</span></div>
-    <h2 id="h-signin">Sign in. <span class="grey">Stay private.</span></h2>
-    <p class="signin-lead">VEIL uses your Cumulus ID. Your $VEIL balance and wallet follow you across your phone and browsers. VEIL keeps only a hash of the ID, never your name or email, and never the sites you visit.</p>
-    <div class="actions">
-      <button class="primary" id="cid-signin" type="button"><span>Sign in with Cumulus ID</span><span aria-hidden="true">↗</span></button>
-      <button class="ghost" id="cid-create" type="button">Create a Cumulus ID</button>
-    </div>
-    <p class="fine" id="cid-status" role="status" aria-live="polite"></p>
-  </section>
-
   <!-- CONNECT -->
   <section class="view" id="view-connect" aria-labelledby="h-connect">
     <div class="context"><span id="ip-line">—</span><span id="st-proto">WireGuard</span></div>
@@ -59,8 +47,6 @@
     <aside class="ad" aria-label="Sponsored">
       <span class="label">Sponsored</span>
       <div class="ad-body" id="ad-body"></div>
-      <a class="label" id="go-premium" href="https://mail.cumuluscloud.app/api/billing/subscribe?plan=veil_premium&amp;return=https%3A%2F%2Finfinitumveilvpn.app%2F" target="_blank" rel="noopener">Remove ads: VEIL Premium, $4.99/month</a>
-      <button type="button" class="label" id="premium-refresh" hidden>Paid already? Turn on Premium</button>
     </aside>
   </section>
 
@@ -138,7 +124,6 @@
     <div class="context"><span>Settings</span><span>On this device</span></div>
     <h2 id="h-settings">Settings.</h2>
     <ul class="settings">
-      <li class="account-row" id="account-row" hidden><span>Cumulus ID <small id="account-who"></small></span><button class="ghost" id="cid-signout" type="button">Sign out</button></li>
       <li><span>Block trackers <small>Ads, analytics and data collectors, for every app</small></span><label class="switch"><input type="checkbox" data-set="block" checked><span></span><b class="sr">Block trackers</b></label></li>
       <li class="android-only" hidden><span>Unsafe network alerts <small>A notification when you join Wi-Fi while not protected</small></span><label class="switch"><input type="checkbox" data-set="alerts" checked><span></span><b class="sr">Unsafe network alerts</b></label></li>
       <li><span>Kill switch</span><label class="switch"><input type="checkbox" data-set="kill" checked><span></span><b class="sr">Kill switch</b></label></li>
@@ -172,7 +157,7 @@
       <ul>
         <li><b>The sites and apps you use.</b> Servers keep no traffic or DNS logs. Blocked trackers are only counted, never named.</li>
         <li><b>What you send.</b> Your traffic is encrypted from your device to our server, and HTTPS sites stay encrypted beyond it.</li>
-        <li><b>Who you are.</b> You sign in with Cumulus ID; VEIL keeps only a hash of it, no name, email or phone number. Your IP address is never written to disk.</li>
+        <li><b>Who you are.</b> No account and no sign-in. VEIL never asks for your name, email or phone number. Your IP address is never written to disk.</li>
         <li><b>Your Wi-Fi.</b> Network checks and alerts run on your phone. The network's name is never read.</li>
         <li><b>Where Tor sends your traffic.</b> With Tor on, our server sees only that you use Tor.</li>
       </ul>
@@ -188,6 +173,16 @@
   <a href="#revenue" data-nav="revenue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Revenue</span></a>
   <a href="#settings" data-nav="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></a>
 </nav>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gate-h" hidden>
+  <div class="gate-box">
+    <p class="label">Sponsored · VEIL VPN is free</p>
+    <h2 id="gate-h">One short ad, then 24 hours of VEIL.</h2>
+    <a class="gate-ad" id="gate-ad" target="_blank" rel="noopener sponsored"><span class="ad-logo" id="gate-mark"></span><span><strong id="gate-title"></strong><span id="gate-body"></span><small id="gate-sponsor"></small></span></a>
+    <div class="meter" aria-hidden="true"><span id="gate-fill"></span></div>
+    <button class="primary" id="gate-go" type="button" disabled><span id="gate-label">Loading…</span><span aria-hidden="true">↗</span></button>
+    <p class="fine">Ads are chosen by server region only, never by who you are.</p>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="firm-suite.js"></script>
 <script type="module" src="app.js"></script>

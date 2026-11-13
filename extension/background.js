@@ -18,20 +18,36 @@ async function device() {
   return d;
 }
 const idHeaders = async () => ({ 'x-veil-device': await device(), 'x-veil-platform': typeof chrome.proxy.onRequest !== 'undefined' ? 'firefox' : 'chrome' });
-// The session comes from signing in with Cumulus ID (below); there is no anonymous one.
-async function session() {
-  const t = await get('local', 'session');
-  if (!t) throw new Error('sign_in_required');
-  return t;
+// Anyone may use VEIL VPN without signing in: with no session yet, this gets an anonymous one.
+// Signing in with Cumulus ID (below) replaces it with a session tied to the person.
+let anonPending = null;
+async function anonSession() {
+  anonPending ??= (async () => {
+    const r = await fetch(`${CONTROL_URL}/v1/session`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(await idHeaders()) }, body: '{}',
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.token) throw new Error(j.error || `http_${r.status}`);
+    await set('local', 'session', j.token);
+    return j.token;
+  })().finally(() => { anonPending = null; });
+  return anonPending;
 }
-async function api(path, { method = 'GET', body } = {}) {
+async function session() {
+  return (await get('local', 'session')) || anonSession();
+}
+async function api(path, { method = 'GET', body } = {}, retried = false) {
   const token = path === '/v1/servers' || path.startsWith('/v1/ads?') || path === '/v1/pool' ? await get('local', 'session') : await session();
   const r = await fetch(`${CONTROL_URL}${path}`, {
     method, headers: { ...(token && { authorization: `Bearer ${token}` }), 'content-type': 'application/json', ...(await idHeaders()) },
     body: body ? JSON.stringify(body) : undefined,
   });
-  // The server no longer accepts this session: sign in again.
-  if (r.status === 401) { await forgetSignIn(); throw new Error('sign_in_required'); }
+  // The server no longer accepts this session: drop it and carry on with a fresh anonymous one.
+  if (r.status === 401) {
+    await forgetSignIn();
+    if (!retried) return api(path, { method, body }, true);
+    throw new Error('sign_in_required');
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `http_${r.status}`);
   return j;
@@ -84,7 +100,13 @@ async function finishSignIn(url, tabId) {
   }
   if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
 }
-async function forgetSignIn() { await S.local.remove(['session', 'cid']); }
+// The ad pass is tied to the session, so a new session needs a new pass.
+async function forgetSignIn() { await S.local.remove(['session', 'cid', 'pass']); }
+// The 24-hour pass earned by watching a curated ad; sent with every connect.
+async function currentPass() {
+  const p = await get('local', 'pass');
+  return p && p.exp > Date.now() + 60_000 ? p : null;
+}
 async function signOut() {
   const c = await get('session', 'conn');
   if (c && c.state !== 'off') await disconnect();
@@ -138,7 +160,7 @@ async function connect(server, { reconnect = false } = {}) {
   if (!reconnect) await set('session', 'conn', { state: 'connecting', server, since: 0 });
   try {
     const st = await settings();
-    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false } });
+    const r = await api('/v1/connect', { method: 'POST', body: { server, mode: 'proxy', tor: st.tor === true, block: st.block !== false, pass: (await currentPass())?.pass } });
     await set('session', 'creds', { username: r.proxy.username, password: r.proxy.password });
     await applyProxy(r.proxy);
     if (!(await probe())) throw new Error('node_unreachable');
@@ -257,6 +279,18 @@ export const handlers = {   // exported for tests; the popup reaches these by me
   blocked: () => api('/v1/blocked'),
   ad: (m) => api(`/v1/ads?region=${encodeURIComponent(m.region || 'global')}`),
   adEvent: (m) => api('/v1/ads/event', { method: 'POST', body: { ad: m.ad, kind: m.kind } }),
+  // The free-access gate: watch one curated ad on start-up, get 24 hours of VEIL VPN.
+  passStatus: async () => {
+    const p = await currentPass();
+    if (p) return { required: true, exp: p.exp };
+    return api('/v1/pass/check', { method: 'POST', body: {} });
+  },
+  passStart: (m) => api('/v1/pass/start', { method: 'POST', body: { region: m.region || 'global' } }),
+  passFinish: async (m) => {
+    const r = await api('/v1/pass/finish', { method: 'POST', body: { ticket: String(m.ticket) } });
+    await set('local', 'pass', { pass: r.pass, exp: r.exp });
+    return { exp: r.exp };
+  },
   wallet: (m) => api('/v1/wallet', { method: 'POST', body: { address: m.address } }),
   claim: () => api('/v1/claim', { method: 'POST' }),
   // A set-up for another device. For WireGuard the popup made the key pair and sends only the public key.
@@ -265,7 +299,7 @@ export const handlers = {   // exported for tests; the popup reaches these by me
     const s = await settings();
     const mode = String(m.mode);
     const proxyMode = mode === 'vless' || mode === 'vless-ws' || mode === 'shadowsocks' || mode === 'shadowsocks-ws';
-    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode, manual: true, publicKey: m.publicKey, tor: proxyMode ? false : s.tor, block: s.block } });
+    return api('/v1/connect', { method: 'POST', body: { server: String(m.server), mode, manual: true, publicKey: m.publicKey, tor: proxyMode ? false : s.tor, block: s.block, pass: (await currentPass())?.pass } });
   },
   setting: async (m) => {
     const s = await settings(); s[m.key] = m.value; await set('local', 'settings', s);
