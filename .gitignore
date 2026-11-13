@@ -26,6 +26,11 @@ android/build/
 android/app/build/
 android/.gradle/
 android/.kotlin/
+apps/apple/.build/
+apps/apple/**/.build/
+apps/apple/DerivedData/
+*.xcuserstate
+xcuserdata/
 *.apk
 *.aab
 *.log

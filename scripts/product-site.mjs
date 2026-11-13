@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'site');
 const ORIGIN = 'https://infinitumveilvpn.app';
 const MAIN = 'https://infinitumcorporation.ai';
-// Cumulus ID issuer for the site's sign-in button. Set CID_ISSUER to a mirror (e.g. one reachable from Russia).
+// Cumulus ID issuer for the site's account bar. Set CID_ISSUER to a mirror (e.g. one reachable from Russia).
 const CID_ISSUER = (process.env.CID_ISSUER || '').replace(/\/+$/, '').replace(/["<>&]/g, '');
 const HUB = 'https://app.infinitumcorporation.ai';
 const attr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -32,7 +32,7 @@ const APPS = [
 const topbar = `<header class="topbar"><a class="brand" href="/">V | VPN<sup>™</sup></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden>${APPS.map(([h, n, s]) => `<a class="menu-app" role="menuitem" href="${h}" rel="noreferrer"><span class="menu-app-name">${n}</span><span class="menu-app-summary">${s}</span></a>`).join('')}</div></div>
-<a class="nav-link" href="/#get">Download</a></nav><span class="cid-slot" data-cumulus-id data-label="Sign in"></span></header>`;
+<a class="nav-link" href="/#get">Download</a></nav><div class="cumulus-bar" data-cumulus-bar></div></header>`;
 const appsStrip = `<nav class="apps" aria-label="Infinitum apps"><a class="app-link" href="https://infinitumveil.app/" target="_blank" rel="noopener noreferrer">VEIL&lt;/&gt;™ browser</a><a class="app-link" href="https://rchtch.app/" target="_blank" rel="noopener noreferrer">:\\ARCHITCT\\™</a><a class="app-link" href="https://scalvs.app/" target="_blank" rel="noopener noreferrer">SCALVS.ai™</a><a class="app-link" href="https://infinitumfabric.app/" target="_blank" rel="noopener noreferrer">FABRIC++™</a></nav>`;
 const footer = `<footer><span>AI-powered. Blockchain-governed™.</span><span class="footer-right"><a class="footer-link" href="/privacy">Privacy</a><a class="footer-link" href="mailto:info@theinfinitumcorporation.com">Contact</a><span class="quiet">© 2026 Infinitum Corporation</span></span></footer>`;
 
@@ -53,7 +53,6 @@ function page({ route = '/', title, desc, body, cls = '', robots = 'index, follo
 <link rel="stylesheet" href="/veil.css">
 <link rel="stylesheet" href="/i18n/i18n.css">
 <script type="module" src="/i18n/start.js"></script>
-<style id="cid-style">.cid-slot{display:inline-flex;align-items:center;margin-left:12px}@media (max-width:720px){.cid-slot .cid-who{display:none}}</style>
 </head>
 <body class="${cls}">
 ${topbar}
@@ -61,8 +60,8 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
-<!-- Sign in with Cumulus://ID (copy of https://id.cumuluscloud.app/id/button.js) -->
-<script src="/cumulus-id.js" data-client="veil-vpn"${CID_ISSUER ? ` data-issuer="${CID_ISSUER}"` : ''} defer></script>
+<!-- Cumulus://ID account bar (copy of https://id.cumuluscloud.app/id/bar.js) -->
+<script src="/cumulus-bar.js" data-client="veil-vpn"${CID_ISSUER ? ` data-issuer="${CID_ISSUER}"` : ''} defer></script>
 </body>
 </html>
 `;
@@ -154,6 +153,8 @@ a { color: inherit; }
 .nav-link::after, .app-link::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--ink); transform: scaleX(0); transition: transform .15s ease; }
 .nav-link:hover::after, .nav-link:focus-visible::after, .nav-link[aria-expanded="true"]::after { transform: scaleX(1); }
 .apps-menu { position: relative; }
+/* Cumulus://ID account bar (site/cumulus-bar.js) at the right end of the top bar. */
+.cumulus-bar { display: inline-flex; align-items: center; flex-shrink: 0; max-width: 100%; margin-left: 12px; }
 .apps-panel { position: absolute; top: 40px; right: -12px; z-index: 10; width: 300px; display: flex; flex-direction: column; padding: 8px; background: #fff; border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 8px 28px rgba(17, 24, 32, .12); }
 .menu-app { display: flex; flex-direction: column; gap: 1px; padding: 9px 12px; border-radius: 3px; text-decoration: none; }
 .menu-app:hover, .menu-app:focus-visible { background: var(--hover); }
@@ -199,7 +200,8 @@ footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6p
 .footer-link { color: var(--ink); text-decoration: none; font-size: 12px; }
 .footer-link:hover, .footer-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 560px) {
-  .topbar { padding-left: 12px; padding-right: 12px; gap: 6px; }
+  .topbar { padding-left: 12px; padding-right: 12px; gap: 6px; flex-wrap: wrap; }
+  .cumulus-bar { margin-left: auto; padding-bottom: 8px; }
   .top-links { gap: 16px; }
   .apps-panel { position: fixed; top: calc(52px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; width: auto; }
   .apps { gap: 2px 18px; }

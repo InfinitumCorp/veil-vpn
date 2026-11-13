@@ -326,6 +326,9 @@ let currentAd = null;
 async function loadAd() {
   const a = await api.ad(srv(selected)?.region || 'global').catch(() => null);
   if (!a) return;
+  // VEIL Premium (server-side only): no ad at all.
+  $('.ad').hidden = !!a.premium;
+  if (a.premium) { currentAd = null; return; }
   currentAd = a;
   $('#ad-body').innerHTML = `<span class="ad-logo">${a.mark}</span><p><strong>${a.title}</strong>${a.body}</p>`;
   if (conn.state === 'on' && document.visibilityState === 'visible') api.adEvent(a.id, 'view').catch(() => {});

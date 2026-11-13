@@ -51,6 +51,9 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   // Anyone may use VEIL VPN without signing in: sessions without a Cumulus ID are allowed unless
   // CID_REQUIRED=1 is set. Signing in with Cumulus ID stays optional (it ties devices to one person).
   const CID_REQUIRED = env('CID_REQUIRED', '0') === '1';
+  // VEIL Premium (no ads) is sold on the Cumulus billing hub, which reports what a CID pays for.
+  // Set BILLING_ME_URL to '' to turn Premium checks off.
+  const BILLING_ME_URL = String(env('BILLING_ME_URL', 'https://mail.cumuluscloud.app/api/billing/me'));
   for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET, ADMIN_KEY })) {
     if (v.length < 24) throw new Error(`${k} must be set to at least 24 characters`);
   }
@@ -120,12 +123,33 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
   async function auth(db, req) {
     const m = /^Bearer ([A-Za-z0-9_-]{16,64})\.([A-Za-z0-9_-]{32,64})$/.exec(req.header('authorization') || '');
     if (!m) fail(401, 'unauthorized');
-    const s = await db.get('SELECT id, key_hash, wallet, device_hash, account FROM sessions WHERE id = ?', m[1]);
+    const s = await db.get('SELECT id, key_hash, wallet, device_hash, account, premium_until FROM sessions WHERE id = ?', m[1]);
     if (!s || s.key_hash !== hash(m[2])) fail(401, 'unauthorized');
     if (CID_REQUIRED && !s.account) fail(401, 'sign_in_required');
     await fraud.observe(db, req, s);
     return s;
   }
+  // Until when this CID has VEIL Premium (ms since epoch), asked of the billing hub with the same
+  // CID token. Any failure means no Premium: ads show, sign-in never fails because of billing.
+  async function premiumUntil(token) {
+    if (!BILLING_ME_URL) return 0;
+    try {
+      const r = await fetchFn(BILLING_ME_URL, { headers: { authorization: `Bearer ${token}`, accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+      if (!r.ok) return 0;
+      const b = await r.json();
+      const p = (Array.isArray(b?.products) ? b.products : [])
+        .find((x) => x?.product === 'veil' && x.plan === 'veil_premium' && ['active', 'trialing'].includes(x.status));
+      if (!p) return 0;
+      const end = Date.parse(p.renews);
+      // Three days of grace past the period end, so a renewal that is a little late never shows ads.
+      return (Number.isFinite(end) ? end : Date.now() + 31 * 86_400_000) + 3 * 86_400_000;
+    } catch (e) {
+      log.warn?.('premium check failed', e?.message);
+      return 0;
+    }
+  }
+  const isPremium = (s) => num(s?.premium_until) > Date.now();
+
   // The person behind a Cumulus ID token, asked of the issuer itself. Returns a keyed hash of the CID:
   // the raw CID, name and email are not stored here.
   async function cidAccount(token) {
@@ -189,6 +213,7 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       connection: c && num(c.exp) > Date.now() ? { node: c.node, mode: c.mode, exp: num(c.exp) } : null,
       hold: hold.get(s.id) || null,
       signedIn: !!s.account,
+      premium: isPremium(s),
     };
   }
 
@@ -263,13 +288,16 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       const cidToken = body.cid_token ?? null;
       if (cidToken == null && CID_REQUIRED) fail(401, 'sign_in_required');
       const account = cidToken == null ? null : await cidAccount(cidToken);
+      const premium = account ? await premiumUntil(cidToken) : 0;
       const id = randomBytes(12).toString('base64url'); const key = randomBytes(24).toString('base64url');
-      await db.run('INSERT INTO sessions (id, key_hash, created, account) VALUES (?, ?, ?, ?)', id, hash(key), day(), account);
+      await db.run('INSERT INTO sessions (id, key_hash, created, account, premium_until) VALUES (?, ?, ?, ?, ?)', id, hash(key), day(), account, premium);
+      // Signing in again after buying (or cancelling) Premium updates every device of this person.
+      if (account) await db.run('UPDATE sessions SET premium_until = ? WHERE account = ?', premium, account);
       // A wallet already linked on another of this person's devices applies here too.
       const w = account && await db.get('SELECT wallet FROM sessions WHERE account = ? AND wallet IS NOT NULL LIMIT 1', account);
       if (w) await db.run('UPDATE sessions SET wallet = ? WHERE id = ?', w.wallet, id);
       await fraud.observe(db, req, { id, device_hash: null });
-      return { token: `${id}.${key}`, signedIn: !!account };
+      return { token: `${id}.${key}`, signedIn: !!account, premium: premium > Date.now() };
     },
 
     // Where clients send people to sign in (the issuer, or its mirror).
@@ -300,12 +328,12 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     'POST /v1/pass/check': async (db, req, body) => {
       const s = await auth(db, req);
       const p = validPass(s, body.pass);
-      return { required: PASS_REQUIRED, exp: p ? p.exp : 0 };
+      return { required: PASS_REQUIRED && !isPremium(s), exp: p ? p.exp : 0 };
     },
 
     'POST /v1/connect': async (db, req, body) => {
       const s = await auth(db, req); limit(`c:${s.id}`, 30, 600_000);
-      if (PASS_REQUIRED && !validPass(s, body.pass)) fail(402, 'pass_required');
+      if (PASS_REQUIRED && !isPremium(s) && !validPass(s, body.pass)) fail(402, 'pass_required');
       const n = nodeById(String(body.server || ''));
       await freshHealth();
       if (!health.get(n.id).up && !DEV) fail(503, 'server_offline');
@@ -422,10 +450,19 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       return { queued: r.changes, ...(await me(db, s)) };
     },
 
-    'GET /v1/ads': (db, req) => publicAd(pickAd(req.query.get('region') || 'global')),
+    // Contextual ads: chosen by the server's region only, never by user profile.
+    // VEIL Premium members get no ad.
+    'GET /v1/ads': async (db, req) => {
+      if (req.header('authorization')) {
+        const s = await auth(db, req).catch(() => null);
+        if (isPremium(s)) return { premium: true };
+      }
+      return publicAd(pickAd(req.query.get('region') || 'global'));
+    },
 
     'POST /v1/ads/event': async (db, req, body) => {
       const s = await auth(db, req);
+      if (isPremium(s)) fail(409, 'premium_no_ads');
       const a = ADS.find((x) => x.id === body.ad) || fail(404, 'unknown_ad');
       return countAd(db, s, a, body.kind === 'click' ? 'click' : 'view');
     },

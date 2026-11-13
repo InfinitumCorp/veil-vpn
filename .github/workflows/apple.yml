@@ -1,0 +1,101 @@
+name: Apple
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  kit:
+    name: VeilVPNKit (Linux)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0.3"
+      - name: C++ toolchain for swift-crypto
+        run: sudo apt-get update && sudo apt-get install -y g++
+      - name: Package tests
+        run: |
+          set -euo pipefail
+          gcc_ver="$(ls /usr/include/c++ | head -1)"
+          export CPLUS_INCLUDE_PATH="/usr/include/c++/${gcc_ver}:/usr/include/x86_64-linux-gnu/c++/${gcc_ver}"
+          export LIBRARY_PATH="/usr/lib/gcc/x86_64-linux-gnu/${gcc_ver}${LIBRARY_PATH:+:$LIBRARY_PATH}"
+          swift test --package-path apps/apple/VeilVPNKit
+
+  apple:
+    name: xcodebuild (no signing)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.12"
+      - name: Package tests
+        run: swift test --package-path apps/apple/VeilVPNKit
+      - name: Build WireGuard bridge
+        run: |
+          set -euo pipefail
+          cd apps/apple
+          build() {
+            local platform="$1"
+            local sdk
+            sdk="$(xcrun --sdk "$platform" --show-sdk-path)"
+            CONFIGURATION_BUILD_DIR="$PWD/.build/wg-go/$platform" \
+            CONFIGURATION_TEMP_DIR="$PWD/.build/wg-tmp/$platform" \
+            PLATFORM_NAME="$platform" \
+            SDKROOT="$sdk" \
+            ARCHS=arm64 \
+            bash scripts/build-wireguard-go.sh
+          }
+          build iphoneos
+          build iphonesimulator
+          build macosx
+      - name: Build iOS
+        working-directory: apps/apple
+        run: |
+          xcodebuild -project VeilVPN.xcodeproj -scheme VeilVPN \
+            -destination 'generic/platform=iOS' \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/dd-ios" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
+            VEIL_WG_REUSE=1 \
+            build
+      - name: Build macOS
+        working-directory: apps/apple
+        run: |
+          xcodebuild -project VeilVPN.xcodeproj -scheme VeilVPN \
+            -destination 'generic/platform=macOS' \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/dd-mac" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
+            VEIL_WG_REUSE=1 \
+            build
+      - name: Test macOS
+        # Ad-hoc signed apps that claim Network Extension / app-group
+        # entitlements are killed at launch (RunningBoard error 5), so the
+        # macOS tests run the app without entitlements.
+        working-directory: apps/apple
+        run: |
+          xcodebuild -project VeilVPN.xcodeproj -scheme VeilVPN \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/dd-mac-test" \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS= \
+            VEIL_WG_REUSE=1 \
+            test
+      - name: Test iOS Simulator
+        working-directory: apps/apple
+        run: |
+          set -euo pipefail
+          device="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $1; exit}' | sed 's/^ *//;s/ *$//')"
+          echo "Simulator: ${device}"
+          xcodebuild -project VeilVPN.xcodeproj -scheme VeilVPN \
+            -destination "platform=iOS Simulator,name=${device}" \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/dd-ios-test" \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            VEIL_WG_REUSE=1 \
+            test
