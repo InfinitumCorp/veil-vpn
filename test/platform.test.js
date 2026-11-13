@@ -25,6 +25,7 @@ writeFileSync(path.join(dir, 'extra.txt'), '# test list\n0.0.0.0 tracker.veil-te
 writeFileSync(process.env.NODES_FILE, JSON.stringify([{ id: 'local-dev', city: 'Test', country: 'Here', flag: '🖥️', region: 'global',
   agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 },
   wg: { endpoint: '127.0.0.1:51820', publicKey: 'A'.repeat(43) + '=' }, tor: true,
+  awg: { endpoint: '127.0.0.1:51821', publicKey: 'E'.repeat(43) + '=', jc: 4, jmin: 40, jmax: 70, s1: 52, s2: 41, h1: 1234567891, h2: 2345678912, h3: 3456789123, h4: 4012345678 },
   ikev2: { host: 'vpn.veil-test.example' }, openvpn: { host: 'vpn.veil-test.example', ca: '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----',tlsCrypt: 'TLSCRYPT' },
   vless: { id: VLESS_ID, host: 'vpn.veil-test.example', reality: { port: 2053, publicKey: VLESS_PUB, shortId: '0011223344556677', sni: 'vpn.veil-test.example', fingerprint: 'chrome', flow: 'xtls-rprx-vision' }, ws: { port: 443, path: '/vless/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } },
   shadowsocks: { host: 'vpn.veil-test.example', method: '2022-blake3-aes-128-gcm', password: SS_PW, port: 16080, ws: { port: 443, path: '/ss/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } } },
@@ -169,9 +170,33 @@ test('WireGuard connect registers a peer and returns a config', async () => {
   assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'wireguard', publicKey: 'nope' } })).status, 400);
 });
 
+test('AmneziaWG connect: its own address pool and interface, with the obfuscation settings', async () => {
+  const pub = 'D'.repeat(43) + '=';
+  const said = []; const log = console.log;
+  console.log = (...a) => { said.push(a.join(' ')); };   // the agent's dry-run lines
+  try {
+    const r = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'amneziawg', publicKey: pub } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.mode, 'amneziawg'); assert.equal(r.body.wireguard, undefined);
+    const a = r.body.amneziawg;
+    assert.match(a.address, /^10\.70\.\d+\.\d+\/32$/);
+    assert.equal(a.endpoint, '127.0.0.1:51821'); assert.equal(a.peerPublicKey, 'E'.repeat(43) + '=');
+    assert.deepEqual([a.jc, a.jmin, a.jmax, a.s1, a.s2, a.h1, a.h2, a.h3, a.h4], [4, 40, 70, 52, 41, 1234567891, 2345678912, 3456789123, 4012345678]);
+    const ip = a.address.split('/')[0];
+    assert.ok(said.some((x) => x.startsWith('[dry-run] awg set awg0 peer ' + pub) && x.includes(`allowed-ips ${ip}/32`)), said.join(String.fromCharCode(10)));
+    // Switching the same key to plain WireGuard moves it from awg0 to wg0.
+    said.length = 0;
+    const w = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'wireguard', publicKey: pub } });
+    assert.match(w.body.wireguard.address, /^10\.66\./);
+    assert.ok(said.some((x) => x === `[dry-run] awg set awg0 peer ${pub} remove`), said.join(String.fromCharCode(10)));
+    assert.ok(said.some((x) => x.startsWith(`[dry-run] wg set wg0 peer ${pub} allowed-ips 10.66.`)), said.join(String.fromCharCode(10)));
+  } finally { console.log = log; }
+  assert.equal((await j('/v1/connect', { method: 'POST', token, body: { server: 'no-tor', mode: 'amneziawg', publicKey: pub } })).body.error, 'amneziawg_unavailable');
+});
+
 test('IKEv2 and OpenVPN logins: listed, accepted by the node hook, bound to a tunnel IP', async () => {
   const list = (await j('/v1/servers')).body.servers;
-  assert.deepEqual(list.find((x) => x.id === 'local-dev').modes, ['proxy', 'wireguard', 'ikev2', 'openvpn', 'vless', 'vless-ws', 'shadowsocks', 'shadowsocks-ws']);
+  assert.deepEqual(list.find((x) => x.id === 'local-dev').modes, ['proxy', 'wireguard', 'amneziawg', 'ikev2', 'openvpn', 'vless', 'vless-ws', 'shadowsocks', 'shadowsocks-ws']);
   assert.deepEqual(list.find((x) => x.id === 'no-tor').modes, ['proxy']);
   const hook = (p, body) => fetch(`http://127.0.0.1:19102${p}`, { method: 'POST', body }).then((r) => r.status);
 

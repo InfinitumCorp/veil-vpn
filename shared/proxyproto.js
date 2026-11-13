@@ -69,6 +69,27 @@ function hostPort(s) {
 }
 
 // ---------- node JSON (what provision prints and NODES stores) ----------
+// AmneziaWG (WireGuard with junk packets and changed headers). Limits as amneziawg-go enforces them:
+// Jc 1-128 junk packets of Jmin..Jmax bytes (Jmax <= 1280), S1/S2 padding of the init/response
+// messages (S1 <= 1132, S2 <= 1188, S1 + 56 != S2), H1-H4 four different message types above 4.
+const intIn = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+export function awgIssues(a) {
+  if (!a || typeof a !== 'object') return ['awg must be an object'];
+  const bad = [];
+  const m = /^(.+):(\d+)$/.exec(String(a.endpoint || ''));
+  if (!m || !hostOk(m[1].replace(/^\[|\]$/g, '')) || !portOk(Number(m[2]))) bad.push('awg.endpoint must be host:port');
+  else if (RESERVED.has(Number(m[2]))) bad.push('awg.endpoint port is already used by another VEIL service');
+  if (decodeKey(a.publicKey)?.length !== 32) bad.push('awg.publicKey must be 32 bytes');
+  if (!intIn(a.jc, 1, 128)) bad.push('awg.jc must be 1-128');
+  if (!intIn(a.jmin, 0, 1280) || !intIn(a.jmax, 1, 1280) || a.jmin >= a.jmax) bad.push('awg.jmin and awg.jmax must satisfy 0 <= jmin < jmax <= 1280');
+  if (!intIn(a.s1, 0, 1132)) bad.push('awg.s1 must be 0-1132');
+  if (!intIn(a.s2, 0, 1188)) bad.push('awg.s2 must be 0-1188');
+  if (intIn(a.s1, 0, 1132) && a.s1 + 56 === a.s2) bad.push('awg.s2 must not equal s1 + 56');
+  const h = [a.h1, a.h2, a.h3, a.h4];
+  if (!h.every((x) => intIn(x, 5, 4294967295)) || new Set(h).size !== 4) bad.push('awg.h1-h4 must be four different integers from 5 to 4294967295');
+  return bad;
+}
+
 export function issues(n) {
   const bad = [];
   if (!n || typeof n !== 'object') return ['node must be an object'];
@@ -92,6 +113,7 @@ export function issues(n) {
       if (v.ws) bad.push(...wsIssues('vless.ws', v.ws));
     }
   }
+  if (n.awg != null) bad.push(...awgIssues(n.awg));
   if (n.shadowsocks != null) {
     const s = n.shadowsocks;
     if (!s || typeof s !== 'object') bad.push('shadowsocks must be an object');
@@ -121,6 +143,7 @@ function wsIssues(label, w) {
 export function modesOf(n) {
   return ['proxy',
     ...(n?.wg ? ['wireguard'] : []),
+    ...(n?.awg ? ['amneziawg'] : []),
     ...(n?.ikev2 ? ['ikev2'] : []),
     ...(n?.openvpn ? ['openvpn'] : []),
     ...(n?.vless?.reality ? ['vless'] : []),
