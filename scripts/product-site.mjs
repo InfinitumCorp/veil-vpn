@@ -32,7 +32,7 @@ const APPS = [
 const topbar = `<header class="topbar"><a class="brand" href="/">V | VPN<sup>™</sup></a><span class="spacer"></span>
 <nav class="top-links" aria-label="Infinitum"><div class="apps-menu"><button type="button" class="nav-link" data-menu="apps-panel" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel">Apps</button>
 <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden>${APPS.map(([h, n, s]) => `<a class="menu-app" role="menuitem" href="${h}" rel="noreferrer"><span class="menu-app-name">${n}</span><span class="menu-app-summary">${s}</span></a>`).join('')}</div></div>
-<a class="nav-link" href="/#get">Download</a></nav><div class="cumulus-bar" data-cumulus-bar></div></header>`;
+<a class="nav-link" href="/#get">Download</a></nav></header>`;
 const appsStrip = `<nav class="apps" aria-label="Infinitum apps"><a class="app-link" href="https://infinitumveil.app/" target="_blank" rel="noopener noreferrer">VEIL&lt;/&gt;™ browser</a><a class="app-link" href="https://rchtch.app/" target="_blank" rel="noopener noreferrer">:\\ARCHITCT\\™</a><a class="app-link" href="https://scalvs.app/" target="_blank" rel="noopener noreferrer">SCALVS.ai™</a><a class="app-link" href="https://infinitumfabric.app/" target="_blank" rel="noopener noreferrer">FABRIC++™</a></nav>`;
 const footer = `<footer><span>AI-powered. Blockchain-governed™.</span><span class="footer-right"><a class="footer-link" href="/privacy">Privacy</a><a class="footer-link" href="mailto:info@theinfinitumcorporation.com">Contact</a><span class="quiet">© 2026 Infinitum Corporation</span></span></footer>`;
 
@@ -60,8 +60,6 @@ ${body}
 ${appsStrip}
 ${footer}
 <script src="/veil.js" defer></script>
-<!-- Cumulus://ID account bar (copy of https://id.cumuluscloud.app/id/bar.js) -->
-<script src="/cumulus-bar.js" data-client="veil-vpn"${CID_ISSUER ? ` data-issuer="${CID_ISSUER}"` : ''} defer></script>
 </body>
 </html>
 `;
@@ -74,7 +72,7 @@ const facts = (items) => `<ul class="facts">${items.map(([h, p]) => `<li><h3>${h
 const PANELS = [
   ['how', 'How it works', facts([
     ['Every app, one tunnel', 'On Android, all of your phone\'s traffic is encrypted. In Chrome and Edge, the extension routes the browser.'],
-    ['Cumulus ID sign-in', 'Sign in with your Cumulus ID, or create one in the app. One balance across your devices; VEIL keeps only a hash of the ID.'],
+    ['Free, no account', 'No sign-in and no account. Watch one short ad when the app starts and VEIL is yours for 24 hours.'],
     ['Honest status', '"Protected" appears only after the server has answered through the tunnel, and is checked again every minute.'],
     ['Kill switch', 'If the server drops, traffic is held instead of leaking, and VEIL reconnects on its own.'],
     ['Tor over VPN', 'One switch sends your traffic from our server into the Tor network, .onion sites included.'],

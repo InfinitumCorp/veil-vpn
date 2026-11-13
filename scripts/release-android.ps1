@@ -5,8 +5,8 @@
 #     -AdmobAppId 'ca-app-pub-...~...' -AdmobBannerId 'ca-app-pub-.../...' -Publish
 #
 # Signing key: android/keystore/veil-upload.jks, alias veil-upload (override with VEIL_KEYSTORE / VEIL_KEY_ALIAS).
-# Password: VEIL_KEYSTORE_PASSWORD (and VEIL_KEY_PASSWORD, same value for a PKCS12 key) if set, otherwise
-# asked for here without echoing. It is passed to Gradle only through this process's environment.
+# Password: VEIL_KEYSTORE_PASSWORD (and VEIL_KEY_PASSWORD, same value for a PKCS12 key) if set, else read from
+# the gitignored android/keystore.properties, otherwise asked for here without echoing. It is passed to Gradle only through this process's environment.
 #
 # -AllowTestAds builds with Google's sample ad IDs (a pipeline check only); it cannot be combined with -Publish.
 # -Publish copies veil-vpn.apk to dist/site/download, rewrites SHA256SUMS.txt and deploys the site (cf deploy).
@@ -51,6 +51,13 @@ $apksigner = Join-Path $bt.FullName 'apksigner.bat'
 if (-not $env:VEIL_KEYSTORE) { $env:VEIL_KEYSTORE = Join-Path $android 'keystore\veil-upload.jks' }
 if (-not (Test-Path $env:VEIL_KEYSTORE)) { throw "No signing key at $env:VEIL_KEYSTORE" }
 if (-not $env:VEIL_KEY_ALIAS) { $env:VEIL_KEY_ALIAS = 'veil-upload' }
+$propsFile = Join-Path $android 'keystore.properties'
+if (-not $env:VEIL_KEYSTORE_PASSWORD -and (Test-Path $propsFile)) {
+  $m = Select-String -Path $propsFile -Pattern '^storePassword=(.+)$' | Select-Object -First 1
+  if ($m) { $env:VEIL_KEYSTORE_PASSWORD = $m.Matches[0].Groups[1].Value.Trim() }
+  $m = Select-String -Path $propsFile -Pattern '^keyPassword=(.+)$' | Select-Object -First 1
+  if ($m -and -not $env:VEIL_KEY_PASSWORD) { $env:VEIL_KEY_PASSWORD = $m.Matches[0].Groups[1].Value.Trim() }
+}
 if (-not $env:VEIL_KEYSTORE_PASSWORD) {
   $sec = Read-Host -AsSecureString "Password for $(Split-Path -Leaf $env:VEIL_KEYSTORE)"
   $env:VEIL_KEYSTORE_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
