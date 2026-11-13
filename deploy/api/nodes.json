@@ -375,5 +375,92 @@
       "ca": "-----BEGIN CERTIFICATE-----\nMIIBiDCCAS2gAwIBAgIUBub4x93+ZbCuYUN5URm6gVes0rswCgYIKoZIzj0EAwIw\nGTEXMBUGA1UEAwwOVkVJTCBzYWUxLTEgQ0EwHhcNMjYxMTEwMTgzMjA5WhcNMzYx\nMTA3MTgzMjA5WjAZMRcwFQYDVQQDDA5WRUlMIHNhZTEtMSBDQTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABPWnCkdE+umGxSZT7brlnP4HuhAzBd1yfM2xNFBk0G5x\n4+lqwPBzIdsnIeLPdcvWKJANUVn9ebsoemsmnEkxBKyjUzBRMB0GA1UdDgQWBBTT\neTeIWWMy5Ll/jvKNSBSOixS5JTAfBgNVHSMEGDAWgBTTeTeIWWMy5Ll/jvKNSBSO\nixS5JTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQDirxSNQs7+\nHwX+txsNFedVgmhGj9r+1oDvnqDjvXUBWgIhAJrA/go+4W1hDJ0aW5llYm6kStq8\nrM3U3+y71lp6gIX5\n-----END CERTIFICATE-----",
       "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\ne8520acef51615f29f55b99ca4e81006\n7158f033b4b9ac10bd6c53f32036ed3d\n7dd50a71853718035ad4ecd3efb9fec9\n8eb03c449069ecdc0a86a91eb79ff1cd\n77296a5b3156f65da36f58272266e76b\nd437b727eb518a60fbb0809c982442f5\n71755d70c9d09fa24af465fb09f68b22\n3478ee1418e8f1b402f0bf745ac785ec\n45eef299f87c510a6b969d766b7d6329\n8e1584c0d4ba1d6e1f005e5495a73ad5\nf23026e6b701a9c404265725d2132fc8\n36d241486fa496bf5bbd20268569a0af\n548a3a09269162be4c58c7e814a0a9e5\nd6d2987553b34aedb4e627317041b02f\n1a94c877a846d5d9c644add9a0b03293\n2dc1c25e4d724069814cedbdef272338\n-----END OpenVPN Static key V1-----"
     }
+  },
+  {
+    "id": "ru1-1",
+    "city": "Moscow",
+    "country": "Russia",
+    "flag": "🇷🇺",
+    "region": "eu",
+    "agentUrl": "https://vpn-ru1.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ru1.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ru1.infinitumveilvpn.app:51820",
+      "publicKey": "QlNOxp0yPEKn4ok7aIy2e/PwZlnA4OviQ16UMkiZuC8=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ru1.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ru1.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhTCCASugAwIBAgIUEAe2VdS5Oa3+m5tvY9w8BZ9T8Y0wCgYIKoZIzj0EAwIw\nGDEWMBQGA1UEAwwNVkVJTCBydTEtMSBDQTAeFw0yNjExMTEyMjQyNThaFw0zNjEx\nMDgyMjQyNThaMBgxFjAUBgNVBAMMDVZFSUwgcnUxLTEgQ0EwWTATBgcqhkjOPQIB\nBggqhkjOPQMBBwNCAAQ+56n11hpSC9X7k1YsP7s58lJEIVulMUbMcp5+Msz54O/x\n4jUAvCZXk/UwQjMO6cmfTaC17mWwNt+07V9mx021o1MwUTAdBgNVHQ4EFgQUEvAv\nLAHhqiCozbgY5XU8nzzvvz4wHwYDVR0jBBgwFoAUEvAvLAHhqiCozbgY5XU8nzzv\nvz4wDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiByqD6LugTxTWxv\nlWW4d6MQvuHynlO2dlrVg2cSlzsF+wIhAKJVP8eAbrkqAHtI30HlbPSJfYxCRfx0\nnCi5+goj7Cmf\n-----END CERTIFICATE-----",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\nfb2196a4b0885d59928305577ee8a94f\n82e8e7e318650e32f00bb2cde6cc36d8\n201ce732b2e9ae2ecdb59c3e5a162ab9\nd90beffe8f4b01c8ca5113cfd7c236e9\n2b369455fa5c0ebbf6a219fe9e09ebdd\n353c382e58982dd204058a7da2af6249\nb24b98bfdd7b288e55e3a519668dcbf6\n8a3528ec41e94040cbb558bc599ef078\n714eefe51450881fcce84b3e541ab953\n4f3ec4139b6f826e30b4eb2eee1ebc24\na8919ae08673c405775578115bb855d6\nc83a32239f2d8ae6f9ddba5f57ed7629\nc6dd18a9e2333b70ed276fd95f355b89\n3411b230e9d7c38dbd9261fe3b25235f\nf7d8cb65d89d61583c3b5b44ff4444f5\nd636c5aa9f7f290f593c5ffa545db570\n-----END OpenVPN Static key V1-----"
+    }
+  },
+  {
+    "id": "ru2-1",
+    "city": "Moscow",
+    "country": "Russia",
+    "flag": "🇷🇺",
+    "region": "eu",
+    "agentUrl": "https://vpn-ru2.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ru2.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ru2.infinitumveilvpn.app:51820",
+      "publicKey": "xkkGTlACaQ3Ke2IynexB0aty91VAHEhBg1WeLA7e8l8=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ru2.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ru2.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhDCCASugAwIBAgIUS3W1w0Rc7ENAMDxYJs4A9N8HN+owCgYIKoZIzj0EAwIw\nGDEWMBQGA1UEAwwNVkVJTCBydTItMSBDQTAeFw0yNjExMTEyMjQzMzZaFw0zNjEx\nMDgyMjQzMzZaMBgxFjAUBgNVBAMMDVZFSUwgcnUyLTEgQ0EwWTATBgcqhkjOPQIB\nBggqhkjOPQMBBwNCAAQthGor46vbhLi1oEnJvIo2E7JXRv+OlVgmHijRZpKHWcuJ\nucK9rfZUWgb6zNuv/RkG1wqREchfRQtshnlDiSJjo1MwUTAdBgNVHQ4EFgQU9GW9\nBJl4iPBj/SVkpYHbBWDcck8wHwYDVR0jBBgwFoAU9GW9BJl4iPBj/SVkpYHbBWDc\nck8wDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiA5CJZK/UxfdHtT\nx4BK4rBsdRHANadp35hqAma/AsZ58AIgXH8Uu/VTAlLCcIPSnKdp/86n0iRVg/Ko\n7yMFwgDLakI=\n-----END CERTIFICATE-----",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\nee836e74e801d997941f15115273ee75\n4d55d82dc1648eb50df895f16e7d8e41\n9e5e86413ce55f56300fd02211fd0f2d\nf4bb97e90c01343c492ad2dabeb92de7\nf77a0de2254edc1389037f04de07f239\n5c8a76099f3554a70a31483892a1b88e\na224254f2eb9c1a9a856528c49c2cab9\n5dd416b62da9844fe614f93d28927dff\n6cfa387017f3e974bc15930d6e875db6\n5578baa703f04f223bfdbee748fb62df\n5afa6e3b2e6ccb8123976677c3346711\n4a91cb10b3df05968b39f1d6db69beba\n806db0c2bf7c4d5c42fb16264d2ec5d2\n4544705c8fd2ee8f782e9833254e50ce\n62d6ad4eaa021f37479a4140cdcc6fea\nf1159e2af0ba6168a7a99b679ff61fcb\n-----END OpenVPN Static key V1-----"
+    }
+  },
+  {
+    "id": "ru3-1",
+    "city": "Moscow",
+    "country": "Russia",
+    "flag": "🇷🇺",
+    "region": "eu",
+    "agentUrl": "https://vpn-ru3.infinitumveilvpn.app:9101",
+    "proxy": {
+      "scheme": "https",
+      "host": "vpn-ru3.infinitumveilvpn.app",
+      "port": 443
+    },
+    "wg": {
+      "endpoint": "vpn-ru3.infinitumveilvpn.app:51820",
+      "publicKey": "2E8QyAQZY5KUN3ByJ3Bmwvsmg2TMTgyVvPzz3hxlB0w=",
+      "dns": "10.66.0.1"
+    },
+    "ikev2": {
+      "host": "vpn-ru3.infinitumveilvpn.app",
+      "dns": "10.66.0.1"
+    },
+    "openvpn": {
+      "host": "vpn-ru3.infinitumveilvpn.app",
+      "udp": 1194,
+      "tcp": 1194,
+      "ca": "-----BEGIN CERTIFICATE-----\nMIIBhDCCASugAwIBAgIUGFuSgib6thkho2smavjBMuPGlqEwCgYIKoZIzj0EAwIw\nGDEWMBQGA1UEAwwNVkVJTCBydTMtMSBDQTAeFw0yNjExMTEyMjQzNTZaFw0zNjEx\nMDgyMjQzNTZaMBgxFjAUBgNVBAMMDVZFSUwgcnUzLTEgQ0EwWTATBgcqhkjOPQIB\nBggqhkjOPQMBBwNCAATTlzLuIEfbT/26osaMfIqOAkSFX2JLdIqTLCJAUtzVHP1E\n2GCjb8GS8WoZX3pOtgbBHP6ChZRuPGe4PpmdOm2Go1MwUTAdBgNVHQ4EFgQUku35\nGpYjD2L59Ur0yBK9fwMNWtcwHwYDVR0jBBgwFoAUku35GpYjD2L59Ur0yBK9fwMN\nWtcwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiAInBJgpQLDpptq\nGo6jqFJmk2yTunYEGsFhJaHYU0NoPAIgHr0dgpxI7oa7m51swH1YozEQ8USTqPs5\nNqk16muz6k0=\n-----END CERTIFICATE-----",
+      "tlsCrypt": "#\n# 2048 bit OpenVPN static key\n#\n-----BEGIN OpenVPN Static key V1-----\n1767e912820c46a041c028dc02be2176\ne6d62686f5ea78f3ce32fa9f059606aa\n8eb884988f630b99bf3d04abcd7f1c1b\n41e4369daea9755cdfc3ab77a75858b3\n090847dcea8e8bbbc554bff441e2ab8e\n99f5e2c84a6b0a85fd488614802ff458\nf7fbc5fbc278293070152e3b0747baab\n25795452456eead92cbd44bbb889ca36\n5310cc8ac54bb7bd3b84d28d1cca33f9\n3ab8ec17198a961a977dd7326544bc15\ne6fee6b2441d992a4ded79cdbb6c95f2\n6ede71e59023435d4d8af300cc6cf7e6\n4ed7fe8b2e1b073b3b233e6528cb3c27\n86d858fa256edbfc90c5cb355a232efc\ndf5fa1d6cd96dc02d512bf48e6f4ec0e\nd8153d817167d1d88fba3a92843fb205\n-----END OpenVPN Static key V1-----"
+    }
   }
 ]
