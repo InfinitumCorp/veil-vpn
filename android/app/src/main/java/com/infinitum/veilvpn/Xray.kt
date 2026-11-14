@@ -18,7 +18,7 @@ import org.json.JSONObject
 object Xray {
     const val TAG = "proxy"
 
-    /** The whole config: TUN in, [outbound] out, DNS answered by Xray over DoH through [outbound]. */
+    /** The whole config: TUN in, [outbound] out, DNS answered by Xray over TCP through [outbound]. */
     fun config(outbound: JSONObject, udp: Boolean): String = JSONObject()
         .put("log", JSONObject().put("loglevel", "warning"))
         .put("inbounds", JSONArray().put(JSONObject()
@@ -29,8 +29,9 @@ object Xray {
             .put(outbound)
             .put(JSONObject().put("tag", "dns-out").put("protocol", "dns"))
             .put(JSONObject().put("tag", "block").put("protocol", "blackhole")))
-        // No "+local": the DoH server is reached through the first outbound, the tunnel itself.
-        .put("dns", JSONObject().put("servers", JSONArray().put("https://1.1.1.1/dns-query")).put("queryStrategy", "UseIPv4"))
+        // DNS over TCP, reached through the first outbound (the tunnel itself), so it also works over the HTTPS
+        // proxy, which carries TCP only. Both A and AAAA are answered (an unanswered AAAA stalls many resolvers).
+        .put("dns", JSONObject().put("servers", JSONArray().put("tcp://1.1.1.1:53").put("tcp://8.8.8.8:53")))
         .put("routing", JSONObject().put("domainStrategy", "AsIs").put("rules", JSONArray()
             .put(JSONObject().put("type", "field").put("inboundTag", JSONArray().put("tun")).put("network", "udp").put("port", "53").put("outboundTag", "dns-out"))
             .put(JSONObject().put("type", "field").put("inboundTag", JSONArray().put("tun")).put("network", "udp")
