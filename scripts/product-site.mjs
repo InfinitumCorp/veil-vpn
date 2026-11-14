@@ -85,7 +85,9 @@ const PANELS = [
     ['IKEv2 / IPsec', 'Built into Android, iPhone, Mac and Windows, and it reconnects smoothly between Wi-Fi and mobile data.'],
     ['OpenVPN', 'Works almost anywhere, over UDP or TCP, with the OpenVPN app on any computer, phone or router.'],
     ['HTTPS proxy', 'What the browser extensions use: the browser\'s traffic, encrypted to our server over port 443.'],
-  ]) + '<p>To use VEIL on another device, open <em>Other devices</em> in the app and choose a protocol. You get a WireGuard file, an OpenVPN profile or IKEv2 settings, with a login that lasts 7 days.</p>'],
+    ['VLESS (XTLS Reality)', 'Optional, for networks that block VPNs. Off until you turn it on in the app; used from <em>Other devices</em> with Xray, v2rayNG or sing-box. It can also run over WebSocket on port 443.'],
+    ['Shadowsocks-2022', 'Optional, for networks that block VPNs. Off until you turn it on in the app; used from <em>Other devices</em> with a Shadowsocks app, Xray or sing-box.'],
+  ]) + '<p>To use VEIL on another device, open <em>Other devices</em> in the app and choose a protocol. You get a WireGuard file, an OpenVPN profile or IKEv2 settings, or, once you turn them on, a VLESS or Shadowsocks link, with a login that lasts 7 days.</p>'],
   ['devices', 'iPhone, Mac, Windows', facts([
     ['1. Make a set-up', 'In the Android app or the browser extension, open <em>Other devices</em>, pick a location and a protocol. The login lasts 7 days; make a new one when it runs out.'],
     ['iPhone and iPad', 'Settings → VPN → Add VPN Configuration → IKEv2. Enter the server, remote ID, username and password from the set-up. Or import the WireGuard file into the WireGuard app.'],
