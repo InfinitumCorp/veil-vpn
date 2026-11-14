@@ -387,9 +387,12 @@ async function showGate() {
   gate.hidden = true; gateOpen = false;
   toast(`VEIL is unlocked for ${t.hours || 24} hours`);
 }
+// The gate goes up before home whenever no valid pass is known, not after a failed Connect. A first
+// launch with no network (screen locked, slow API) shows it too: the gate retries until the API answers.
 async function checkPass() {
   const p = await api.passStatus().catch(() => null);
-  if (p?.required && !(p.exp > Date.now() + 60_000)) showGate();
+  if (p && p.required === false) return;
+  if (!(p?.exp > Date.now() + 60_000)) showGate();
 }
 
 // ---------------------------------------------------------------- earn view
