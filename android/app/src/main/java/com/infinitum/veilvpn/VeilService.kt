@@ -23,7 +23,8 @@ import org.json.JSONObject
 
 /**
  * Foreground service that supervises the tunnel while it is on: checks the WireGuard
- * handshake every 5 s, reconnects with backoff, keeps the control-server session fresh,
+ * handshake (or the Xray tunnel's probe) every 5 s, falls back from WireGuard to VLESS / the
+ * HTTPS proxy when the network drops WireGuard data, reconnects with backoff, keeps the control-server session fresh,
  * and sends one reward heartbeat a minute while the user is actively using the phone.
  */
 class VeilService : Service() {
@@ -87,6 +88,14 @@ class VeilService : Service() {
             }
             if (label != lastShown) { goForeground(label); lastShown = label }
             if (st == "on") NetworkGuard.clear(this)   // the unsafe-network alert has been dealt with
+
+            // WireGuard handshakes but nothing comes back (Russia's TSPU): move to VLESS / the HTTPS proxy.
+            if (Vpn.stalled()) {
+                goForeground("Switching to a protocol this network allows…"); lastShown = ""
+                runCatching { Vpn.fallBack(this) }
+                delay(2_000)
+                continue
+            }
 
             if (st == "error") {
                 // Tunnel stays up with all routes, so traffic is held rather than leaked.

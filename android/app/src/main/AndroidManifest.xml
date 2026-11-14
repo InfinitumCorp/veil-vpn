@@ -64,6 +64,16 @@
                 android:value="Supervises the user's active VPN connection" />
         </service>
 
+        <!-- The VPN interface for VLESS Reality and the HTTPS-proxy tunnel (Xray), used where WireGuard is blocked. -->
+        <service
+            android:name=".XrayVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <!-- Unsafe-network alerts: Wi-Fi changes (registered by the app) and restart after boot or update. -->
         <receiver
             android:name=".NetworkGuard$Receiver"

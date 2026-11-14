@@ -64,9 +64,10 @@ if (-not $env:VEIL_KEYSTORE_PASSWORD) {
 }
 if (-not $env:VEIL_KEY_PASSWORD) { $env:VEIL_KEY_PASSWORD = $env:VEIL_KEYSTORE_PASSWORD }
 
-# ---- build (the web interface is copied into the app's assets first)
+# ---- build (the web interface is copied into the app's assets first, and Xray-core is built once)
 Push-Location $root
 try { node scripts/build.mjs; if ($LASTEXITCODE) { throw 'npm run build failed' } } finally { Pop-Location }
+if (-not (Test-Path (Join-Path $android 'app/libs/veilxray.aar'))) { & (Join-Path $PSScriptRoot 'build-xray-aar.ps1') }
 $props = @("-PveilVersionCode=$VersionCode", "-PveilVersionName=$VersionName", "-PveilControlUrl=$ControlUrl")
 if ($AllowTestAds) { $props += '-PveilAllowTestAds=true' } else { $props += "-PveilAdmobAppId=$AdmobAppId", "-PveilAdmobBannerId=$AdmobBannerId" }
 Push-Location $android
