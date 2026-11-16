@@ -176,6 +176,7 @@ const PROTOS = {
   ikev2: ['IKEv2', 'IKEv2/IPsec: the VPN built into the system, steady when switching Wi-Fi and mobile data'],
   openvpn: ['OpenVPN', 'OpenVPN: works on almost any network'],
   proxy: ['HTTPS', 'HTTPS proxy: this browser only'],
+  vless: ['VLESS', 'VLESS Reality'],
 };
 let SET;
 try { SET = Object.assign({}, DEFAULT_SET, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch { SET = { ...DEFAULT_SET }; }
@@ -239,6 +240,9 @@ function paintConn() {
   const ip = api.ip(s === 'on');
   const tor = s === 'on' && (LIVE ? conn.tor : SET.tor);
   $('#ip-line').textContent = ip ? `IP ${ip}${tor ? ' · via Tor' : ''}` : s === 'on' ? (tor ? 'Tunnel active · via Tor' : 'Tunnel active') : s === 'error' ? (ANDROID || SET.kill ? 'Traffic held' : 'Traffic direct') : 'Unprotected';
+  // While connected, show the protocol actually carrying traffic (Android may have switched to VLESS or HTTPS
+  // because the network blocks WireGuard); otherwise the one chosen in Settings.
+  $('#st-proto').textContent = ((s !== 'off' && PROTOS[conn.protocol]) || PROTOS[SET.proto] || PROTOS.wireguard)[0];
   paintShield(); paintNet();
   if (s !== 'on') { $('#st-time').textContent = '00:00:00'; $('#st-down').textContent = $('#st-up').textContent = EXT ? '—' : '0.0 MB'; }
 }
