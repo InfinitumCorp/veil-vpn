@@ -12,6 +12,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
+import tls from 'node:tls';
 import dns from 'node:dns/promises';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
@@ -48,6 +49,17 @@ const ACCOUNTS_FILE = env('ACCOUNTS_FILE', '');              // e.g. /var/lib/ve
 const SWAN_SECRETS = env('SWAN_SECRETS', '');                // e.g. /etc/swanctl/conf.d/veil-secrets.conf; empty = no IKEv2
 const SWAN_DRY_RUN = env('SWAN_DRY_RUN', WG_DRY_RUN ? '1' : '') === '1';
 const HOOK_PORT = Number(env('HOOK_PORT', 9102));            // 127.0.0.1 only: OpenVPN and strongSwan scripts
+// Relay, a domestic first hop for censored countries: RELAY_TO="<exit node id>=<host>:<port>,...". This node then
+// also accepts proxy tokens issued for those exits, and forwards each CONNECT with the same credentials over TLS to
+// the exit's own proxy. The exit checks the token again and applies Tor and tracker blocking; this node only
+// carries the bytes, so traffic still leaves the country with the exit's address.
+export const parseRelays = (spec) => new Map(String(spec || '').split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+  const [id, addr = ''] = x.split('=');
+  const i = addr.lastIndexOf(':');
+  return [id, { host: addr.slice(0, i), port: Number(addr.slice(i + 1)) }];
+}).filter(([id, a]) => id && a.host && a.port > 0 && a.port < 65536));
+const RELAYS = parseRelays(env('RELAY_TO', ''));
+const RELAY_CA = env('RELAY_CA', '') ? readFileSync(env('RELAY_CA', '')) : undefined;   // a private CA for exits; tests
 for (const [k, v] of Object.entries({ TOKEN_SECRET, AGENT_SECRET })) {
   if (v.length < 24) { console.error(`${k} must be set to at least 24 characters`); process.exit(1); }
 }
@@ -79,7 +91,35 @@ function authorize(req) {
   const [user, ...rest] = Buffer.from(m[1], 'base64').toString().split(':');
   const token = rest.join(':');
   const p = user === 'veil' && verify(token, TOKEN_SECRET);
-  return p && p.node === NODE_ID ? { token, tor: p.tor === true, block: p.block !== false, sid: String(p.sid || '') } : null;
+  if (!p) return null;
+  if (p.node !== NODE_ID) return RELAYS.has(p.node) ? { token, relay: RELAYS.get(p.node), auth: req.headers['proxy-authorization'] } : null;
+  return { token, tor: p.tor === true, block: p.block !== false, sid: String(p.sid || '') };
+}
+
+// Opens a tunnel to `target` ("host:port") through an exit node's proxy (see RELAY_TO).
+export function relayConnect(relay, auth, target, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const host = relay.host.replace(/^\[|\]$/g, '');
+    const up = tls.connect({ host, port: relay.port, servername: net.isIP(host) ? undefined : host, ALPNProtocols: ['http/1.1'], ...(RELAY_CA ? { ca: RELAY_CA } : {}), ...opts });
+    const fail = (e) => { up.destroy(); reject(e); };
+    up.setTimeout(15_000, () => fail(new Error('relay_timeout')));
+    up.once('error', fail);
+    up.once('secureConnect', () => up.write(`CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\nProxy-Authorization: ${auth}\r\n\r\n`));
+    let buf = Buffer.alloc(0);
+    const onData = (d) => {
+      buf = Buffer.concat([buf, d]);
+      const end = buf.indexOf('\r\n\r\n');
+      if (end < 0) { if (buf.length > 8192) fail(new Error('relay_bad_reply')); return; }
+      up.off('data', onData); up.off('error', fail); up.setTimeout(0);
+      const status = Number(/^HTTP\/1\.[01] (\d{3})/.exec(buf.subarray(0, end).toString())?.[1] || 0);
+      if (status !== 200) { up.destroy(); return reject(Object.assign(new Error('relay_refused'), { status })); }
+      up.pause();
+      const rest = buf.subarray(end + 4);
+      if (rest.length) up.unshift(rest);
+      resolve(up);
+    };
+    up.on('data', onData);
+  });
 }
 
 // A blocked tracker gets a 403 and adds one to this user's count; the name itself is not kept.
@@ -200,6 +240,19 @@ const onConnect = async (req, client, head) => {
   if ((active.get(token) || 0) >= PER_TOKEN) return client.end('HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\n\r\n');
   const i = req.url.lastIndexOf(':');
   const host = req.url.slice(0, i), port = Number(req.url.slice(i + 1));
+  if (a.relay) {
+    let up;
+    try { up = await relayConnect(a.relay, a.auth, req.url); }
+    catch (e) { return client.end(`HTTP/1.1 ${e.status || 502} ${e.status ? 'Refused by exit' : 'Bad Gateway'}\r\nContent-Length: 0\r\n\r\n`); }
+    client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+    if (head?.length) up.write(head);
+    up.pipe(client); client.pipe(up);
+    track(token, client);
+    up.setTimeout(300_000, () => up.destroy());
+    up.on('error', () => client.destroy());
+    client.on('close', () => up.destroy());
+    return;
+  }
   if (blockedHost(a, host)) return client.end(BLOCKED_RESPONSE);
   if (a.tor) {
     let up;

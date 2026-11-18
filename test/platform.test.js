@@ -28,7 +28,8 @@ writeFileSync(process.env.NODES_FILE, JSON.stringify([{ id: 'local-dev', city: '
   ikev2: { host: 'vpn.veil-test.example' }, openvpn: { host: 'vpn.veil-test.example', ca: '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----',tlsCrypt: 'TLSCRYPT' },
   vless: { id: VLESS_ID, host: 'vpn.veil-test.example', reality: { port: 2053, publicKey: VLESS_PUB, shortId: '0011223344556677', sni: 'vpn.veil-test.example', fingerprint: 'chrome', flow: 'xtls-rprx-vision' }, ws: { port: 443, path: '/vless/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } },
   shadowsocks: { host: 'vpn.veil-test.example', method: '2022-blake3-aes-128-gcm', password: SS_PW, port: 16080, ws: { port: 443, path: '/ss/00112233445566778899aabbccddeeff', host: 'vpn.veil-test.example', sni: 'vpn.veil-test.example', tls: true } } },
-  { id: 'no-tor', city: 'Plain', country: 'Here', flag: '🖥️', region: 'global', agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 } }]));
+  { id: 'no-tor', city: 'Plain', country: 'Here', flag: '🖥️', region: 'global', agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'http', host: '127.0.0.1', port: 19100 }, relayVia: 'relay-hop' },
+  { id: 'relay-hop', city: 'Hop', country: 'Here', flag: '🖥️', region: 'global', agentUrl: 'http://127.0.0.1:19101', proxy: { scheme: 'https', host: 'hop.veil-test.example', port: 443 } }]));
 
 const B = 'http://127.0.0.1:18787';
 let servers = [], target, targetPort, control, db, socks;
@@ -501,4 +502,14 @@ test('a down Xray inbound fails that protocol and leaves the others up', async (
 test('disconnect ends rewards', async () => {
   assert.equal((await j('/v1/disconnect', { method: 'POST', token })).status, 200);
   assert.equal((await j('/v1/heartbeat', { method: 'POST', token, body: { active: true } })).status, 409);
+});
+
+test("proxy mode hands out an exit node's domestic relay only when the client asks for it", async () => {
+  const direct = await j('/v1/connect', { method: 'POST', token, body: { server: 'no-tor', mode: 'proxy' } });
+  assert.equal(direct.status, 200); assert.equal(direct.body.relayed, false); assert.equal(direct.body.proxy.port, 19100);
+  const hop = await j('/v1/connect', { method: 'POST', token, body: { server: 'no-tor', mode: 'proxy', relay: true } });
+  assert.equal(hop.status, 200); assert.equal(hop.body.relayed, true);
+  assert.equal(hop.body.proxy.host, 'hop.veil-test.example'); assert.equal(hop.body.proxy.port, 443);
+  const none = await j('/v1/connect', { method: 'POST', token, body: { server: 'local-dev', mode: 'proxy', relay: true } });
+  assert.equal(none.body.relayed, false); assert.equal(none.body.proxy.port, 19100);
 });

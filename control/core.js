@@ -375,7 +375,13 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
           address: `${ip}/32`, dns: n.wg.dns || '10.66.0.1', peerPublicKey: n.wg.publicKey, endpoint: n.wg.endpoint, allowedIps: '0.0.0.0/0, ::/0', keepalive: 25 } };
       }
       const token = sign({ sid: hash(s.id).slice(0, 16), node: n.id, exp, ...(tor && { tor: true }), ...(!block && { block: false }) }, TOKEN_SECRET);
-      return { mode: 'proxy', server: publicNode(n), exp, tor, block, proxy: { scheme: n.proxy.scheme, host: n.proxy.host, port: n.proxy.port, username: 'veil', password: token } };
+      // Censored networks (Russia freezes TLS to many foreign servers after ~16 KB): the client may ask to go
+      // through this exit's domestic relay node (its "relayVia"), which forwards to the exit with the same token.
+      const via = body.relay === true && n.relayVia ? NODES.find((x) => x.id === n.relayVia && x.proxy) : null;
+      const hop = via && (DEV || health.get(via.id).up) ? via : null;
+      const p = hop ? hop.proxy : n.proxy;
+      return { mode: 'proxy', server: publicNode(n), exp, tor, block, relayed: !!hop,
+        proxy: { scheme: p.scheme, host: p.host, port: p.port, username: 'veil', password: token } };
     },
 
     'POST /v1/disconnect': async (db, req) => {
