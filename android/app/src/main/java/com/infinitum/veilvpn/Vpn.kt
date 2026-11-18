@@ -2,6 +2,7 @@ package com.infinitum.veilvpn
 
 import android.content.Context
 import android.net.TrafficStats
+import android.os.Build
 import android.os.Process
 import android.telephony.TelephonyManager
 import com.infinitum.veilvpn.xray.veilxray.Veilxray
@@ -36,6 +37,10 @@ object Vpn {
     private const val PROBE_EVERY_MS = 60_000L
     private const val PROBE_FRESH_MS = 180_000L
     private val XRAY_MODES = setOf("vless", "proxy")
+    /** VLESS that has not carried a page this long after it started is treated as blocked: try the HTTPS proxy. */
+    private const val XRAY_STUCK_MS = 45_000L
+    private var xrayStart = 0L
+    private var noVless = false
 
     @Volatile var state = "off"; private set
     @Volatile var server: String? = null; private set
@@ -74,8 +79,25 @@ object Vpn {
         val until = ctx.getSharedPreferences("veil", Context.MODE_PRIVATE).getLong("stealth_until", 0L)
         if (until > System.currentTimeMillis()) return true
         val tm = ctx.getSystemService(TelephonyManager::class.java) ?: return false
-        return listOf(runCatching { tm.networkCountryIso }.getOrNull(), runCatching { tm.simCountryIso }.getOrNull())
-            .any { it.equals("ru", ignoreCase = true) }
+        val isos = mutableListOf(runCatching { tm.networkCountryIso }.getOrNull(), runCatching { tm.simCountryIso }.getOrNull())
+        // The default TelephonyManager reads one SIM slot; a Russian SIM in the other slot is only seen per slot.
+        if (Build.VERSION.SDK_INT >= 30) {
+            val slots = runCatching { tm.activeModemCount }.getOrDefault(1)
+            for (slot in 0 until slots) isos += runCatching { tm.getNetworkCountryIso(slot) }.getOrNull()
+        }
+        return isos.any { it.equals("ru", ignoreCase = true) }
+    }
+
+    /** The VLESS tunnel started but no page has come back through it: the network is blocking it too. */
+    fun xrayStuck(): Boolean =
+        protocol == "vless" && state != "on" && xrayStart > 0L && System.currentTimeMillis() - xrayStart > XRAY_STUCK_MS
+
+    /** Moves this connection from VLESS to the node's HTTPS proxy. */
+    @Synchronized
+    fun skipVless(ctx: Context) {
+        val serverId = server ?: return
+        noVless = true
+        connect(ctx, serverId, reconnect = true)
     }
 
     /** WireGuard got a handshake but its data is not coming back: the network is dropping it. */
@@ -212,7 +234,7 @@ object Vpn {
         val api = ControlApi(ctx)
         fun call(mode: String) = api.call("POST", "/v1/connect", JSONObject()
             .put("server", serverId).put("mode", mode).put("tor", wantTor).put("block", wantBlock))
-        var mode = if (reconnect && protocol == "proxy" && XrayVpnService.isUp()) "proxy" else "vless"
+        var mode = if (noVless || (reconnect && protocol == "proxy" && XrayVpnService.isUp())) "proxy" else "vless"
         val r = try { call(mode) } catch (e: ApiError) {
             // Nodes without VLESS (or with Xray down) say so; their HTTPS proxy is always there.
             if (mode == "vless" && (e.code == "vless_unavailable" || e.code == "server_offline")) { mode = "proxy"; call(mode) } else throw e
@@ -234,6 +256,7 @@ object Vpn {
             Veilxray.updateOutbound(outbound.toString())
         } else {
             XrayVpnService.start(ctx, Xray.config(outbound, udp = mode == "vless"))
+            xrayStart = System.currentTimeMillis()
             uidRx0 = TrafficStats.getUidRxBytes(Process.myUid()); uidTx0 = TrafficStats.getUidTxBytes(Process.myUid())
             probeAt = 0L
             if (protocol != mode) probeOk = 0L
@@ -302,7 +325,7 @@ object Vpn {
         else runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
         runCatching { ControlApi(ctx).call("POST", "/v1/disconnect") }
         state = "off"; since = 0L; rx = 0L; tx = 0L; peerKey = null; assignedIp = null; tor = false
-        onRx = -1L; onTx = -1L; probeOk = 0L; probeAt = 0L
+        onRx = -1L; onTx = -1L; probeOk = 0L; probeAt = 0L; xrayStart = 0L; noVless = false
     }
 
     fun snapshot(): JSONObject = JSONObject()

@@ -34,6 +34,8 @@ class VeilService : Service() {
         const val EXTRA_SERVER = "server"
         private const val CHANNEL = "vpn"
         private const val NOTIFY_ID = 1
+        /** After this long with nothing getting through, VEIL turns itself off rather than hold traffic forever. */
+        private const val GIVE_UP_MS = 5 * 60_000L
 
         fun connect(ctx: Context, server: String) = ctx.startForegroundService(
             Intent(ctx, VeilService::class.java).setAction(ACTION_CONNECT).putExtra(EXTRA_SERVER, server))
@@ -78,9 +80,24 @@ class VeilService : Service() {
         var lastRefresh = System.currentTimeMillis()
         var backoff = 3_000L
         var lastShown = ""
+        var notOnSince = 0L
         while (scope.isActive) {
             val now = System.currentTimeMillis()
             val st = Vpn.check(this)
+            // Never leave the phone cut off: if nothing has got through for a while, give the network back.
+            if (st == "on") notOnSince = 0L else if (notOnSince == 0L) notOnSince = now
+            if (notOnSince != 0L && now - notOnSince > GIVE_UP_MS) {
+                Vpn.disconnect(this)
+                NetworkGuard.failed(this, "network_blocks_vpn")
+                stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return
+            }
+            // VLESS is blocked too: move to the node's HTTPS proxy.
+            if (Vpn.xrayStuck()) {
+                goForeground("Trying another way through this network…"); lastShown = ""
+                runCatching { Vpn.skipVless(this) }
+                delay(2_000)
+                continue
+            }
             val label = when (st) {
                 "on" -> "Protected · ${serverName(server)}"
                 "error" -> "Connection lost · reconnecting"

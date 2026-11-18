@@ -145,6 +145,7 @@ object NetworkGuard {
         val text = when (code) {
             "tor_unavailable" -> "This location has no Tor exit. Open VEIL to pick another, or turn Tor off."
             "server_offline" -> "That location is offline. Open VEIL to pick another."
+            "network_blocks_vpn" -> "This network is blocking VEIL, so it was turned off to keep you online. Open VEIL to try again."
             else -> "VEIL could not connect. Open the app to try again."
         }
         val nm = ctx.getSystemService(NotificationManager::class.java)

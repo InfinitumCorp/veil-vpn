@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -103,8 +104,9 @@ func UpdateOutbound(outboundJSON string) error {
 	return core.AddOutboundHandler(inst, built)
 }
 
-// Probe fetches https://1.1.1.1/cdn-cgi/trace through the VLESS outbound and returns how long it took in
-// milliseconds. It proves that data really flows both ways, not just that a connection opened.
+// Probe downloads 64 KB from speed.cloudflare.com through the tunnel and returns how long it took in
+// milliseconds. It proves that data really flows both ways, and in bulk: Russia's TSPU lets the first ~16 KB of a
+// connection to many foreign servers through and then freezes it, so a small page alone would pass while sites hang.
 func Probe(timeoutMs int) (int64, error) {
 	mu.Lock()
 	i := inst
@@ -112,10 +114,11 @@ func Probe(timeoutMs int) (int64, error) {
 	if i == nil {
 		return 0, errors.New("not running")
 	}
+	const host, want = "speed.cloudflare.com", 65536
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	c, err := core.Dial(ctx, i, xnet.TCPDestination(xnet.ParseAddress("1.1.1.1"), xnet.Port(443)))
+	c, err := core.Dial(ctx, i, xnet.TCPDestination(xnet.ParseAddress(host), xnet.Port(443)))
 	if err != nil {
 		return 0, err
 	}
@@ -123,19 +126,25 @@ func Probe(timeoutMs int) (int64, error) {
 	if d, ok := ctx.Deadline(); ok {
 		c.SetDeadline(d)
 	}
-	t := tls.Client(c, &tls.Config{ServerName: "one.one.one.one"})
+	t := tls.Client(c, &tls.Config{ServerName: host})
 	if err := t.HandshakeContext(ctx); err != nil {
 		return 0, err
 	}
-	if _, err := t.Write([]byte("GET /cdn-cgi/trace HTTP/1.1\r\nHost: one.one.one.one\r\nConnection: close\r\n\r\n")); err != nil {
+	req := fmt.Sprintf("GET /__down?bytes=%d HTTP/1.1\r\nHost: %s\r\nUser-Agent: veil-probe\r\nConnection: close\r\n\r\n", want, host)
+	if _, err := t.Write([]byte(req)); err != nil {
 		return 0, err
 	}
-	line, err := bufio.NewReader(t).ReadString('\n')
+	r := bufio.NewReader(t)
+	line, err := r.ReadString('\n')
 	if err != nil {
 		return 0, err
 	}
 	if !strings.Contains(line, " 200 ") {
 		return 0, fmt.Errorf("probe: %s", strings.TrimSpace(line))
+	}
+	n, err := io.Copy(io.Discard, r)
+	if n < want {
+		return 0, fmt.Errorf("probe: got %d bytes: %v", n, err)
 	}
 	return time.Since(start).Milliseconds(), nil
 }

@@ -514,7 +514,7 @@ if (ANDROID) {
 $('[data-set="proto"]').value = SET.proto;
 function paintProto() {
   const [label, hint] = PROTOS[SET.proto] || PROTOS.wireguard;
-  $('#st-proto').textContent = label;
+  if (conn.state === 'off') $('#st-proto').textContent = label;   // while connected, paintConn shows the live one
   $('#proto-hint').textContent = hint;
 }
 paintProto();
