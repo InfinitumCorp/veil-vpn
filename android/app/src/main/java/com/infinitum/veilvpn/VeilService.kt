@@ -94,7 +94,7 @@ class VeilService : Service() {
             // VLESS is blocked too: move to the node's HTTPS proxy.
             if (Vpn.xrayStuck()) {
                 goForeground("Trying another way through this network…"); lastShown = ""
-                runCatching { Vpn.skipVless(this) }
+                runCatching { Vpn.skipStuck(this) }
                 delay(2_000)
                 continue
             }

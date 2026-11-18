@@ -41,6 +41,8 @@ object Vpn {
     private const val XRAY_STUCK_MS = 45_000L
     private var xrayStart = 0L
     private var noVless = false
+    private var noRelay = false
+    private var relayUsed = false
 
     @Volatile var state = "off"; private set
     @Volatile var server: String? = null; private set
@@ -88,15 +90,16 @@ object Vpn {
         return isos.any { it.equals("ru", ignoreCase = true) }
     }
 
-    /** The VLESS tunnel started but no page has come back through it: the network is blocking it too. */
+    /** The relayed proxy or VLESS started but no page has come back through it: try the next way. */
     fun xrayStuck(): Boolean =
-        protocol == "vless" && state != "on" && xrayStart > 0L && System.currentTimeMillis() - xrayStart > XRAY_STUCK_MS
+        (protocol == "vless" || (protocol == "proxy" && relayUsed)) && state != "on" && xrayStart > 0L &&
+            System.currentTimeMillis() - xrayStart > XRAY_STUCK_MS
 
-    /** Moves this connection from VLESS to the node's HTTPS proxy. */
+    /** Moves this connection on from a way that carries nothing: the relay to VLESS, VLESS to the node's proxy. */
     @Synchronized
-    fun skipVless(ctx: Context) {
+    fun skipStuck(ctx: Context) {
         val serverId = server ?: return
-        noVless = true
+        if (protocol == "vless") noVless = true else noRelay = true
         connect(ctx, serverId, reconnect = true)
     }
 
@@ -234,12 +237,14 @@ object Vpn {
         val api = ControlApi(ctx)
         // "relay": the proxy may come through the exit's relay inside the country (a domestic hop is not frozen).
         fun call(mode: String) = api.call("POST", "/v1/connect", JSONObject()
-            .put("server", serverId).put("mode", mode).put("tor", wantTor).put("block", wantBlock).put("relay", mode == "proxy"))
+            .put("server", serverId).put("mode", mode).put("tor", wantTor).put("block", wantBlock).put("relay", mode == "proxy" && !noRelay))
         // A relayed proxy gets through where the network freezes connections abroad, so it comes first when the
         // node has one; otherwise VLESS Reality, then the node's own proxy.
-        val relayed = if (reconnect && protocol == "vless") null
+        val relayed = if (noRelay || (reconnect && protocol == "vless")) null
             else runCatching { call("proxy") }.getOrNull()?.takeIf { it.optBoolean("relayed", false) }
-        var mode = if (relayed != null || noVless || (reconnect && protocol == "proxy" && XrayVpnService.isUp())) "proxy" else "vless"
+        val wasRelayed = relayUsed
+        relayUsed = relayed != null
+        var mode = if (relayed != null || noVless || (reconnect && protocol == "proxy" && !wasRelayed && XrayVpnService.isUp())) "proxy" else "vless"
         val r = relayed ?: try { call(mode) } catch (e: ApiError) {
             // Nodes without VLESS (or with Xray down) say so; their HTTPS proxy is always there.
             if (mode == "vless" && (e.code == "vless_unavailable" || e.code == "server_offline")) { mode = "proxy"; call(mode) } else throw e
@@ -330,7 +335,7 @@ object Vpn {
         else runCatching { backend(ctx).setState(tunnel, Tunnel.State.DOWN, null) }
         runCatching { ControlApi(ctx).call("POST", "/v1/disconnect") }
         state = "off"; since = 0L; rx = 0L; tx = 0L; peerKey = null; assignedIp = null; tor = false
-        onRx = -1L; onTx = -1L; probeOk = 0L; probeAt = 0L; xrayStart = 0L; noVless = false
+        onRx = -1L; onTx = -1L; probeOk = 0L; probeAt = 0L; xrayStart = 0L; noVless = false; noRelay = false; relayUsed = false
     }
 
     fun snapshot(): JSONObject = JSONObject()
