@@ -88,3 +88,8 @@ test('a token for a node this one does not relay to is refused', async () => {
   const out = await connect('example.com:443', auth('somewhere-else'));
   assert.match(out, /^HTTP\/1\.1 407/);
 });
+
+test('health lists the exits this node relays for, so control only hands out a relay that is ready', { skip: !haveOpenssl && 'no openssl' }, async () => {
+  const h = await fetch('http://127.0.0.1:19331/health', { headers: { authorization: `Bearer ${process.env.AGENT_SECRET}` } }).then((r) => r.json());
+  assert.deepEqual(h.relays, ['exit-us']);
+});

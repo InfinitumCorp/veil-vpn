@@ -398,7 +398,7 @@ const agentHandler = async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/health') {
       const services = await xrayServices();
-      return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100, ...(services ? { services } : {}) });
+      return agentJson(res, 200, { node: NODE_ID, tunnels, peers, logins: bound.size, tor: !!TOR_SOCKS, blocklist: blocklist.size, blockedToday: blockedCount.total(), load: ((tunnels + (peers + bound.size) * 8) / CAPACITY) * 100, ...(services ? { services } : {}), ...(RELAYS.size ? { relays: [...RELAYS.keys()] } : {}) });
     }
     if (req.method === 'POST' && req.url === '/peers') {
       if (!KEY_RE.test(body.publicKey || '') || !IP_RE.test(body.ip || '')) return agentJson(res, 400, { error: 'bad_input' });

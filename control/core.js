@@ -103,8 +103,8 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
     await Promise.all(NODES.map(async (n) => {
       try {
         const h = await agent(n, 'GET', '/health');
-        health.set(n.id, { up: true, load: Math.min(100, Math.round(h.load ?? 0)), checked: Date.now(), services: h.services && typeof h.services === 'object' ? h.services : null });
-      } catch { health.set(n.id, { up: false, load: 0, checked: Date.now(), services: null }); }
+        health.set(n.id, { up: true, load: Math.min(100, Math.round(h.load ?? 0)), checked: Date.now(), services: h.services && typeof h.services === 'object' ? h.services : null, relays: Array.isArray(h.relays) ? h.relays.map(String) : [] });
+      } catch { health.set(n.id, { up: false, load: 0, checked: Date.now(), services: null, relays: [] }); }
     }));
   }
   // Workers have no background timers: refresh node health when it is older than 30 s.
@@ -378,7 +378,10 @@ export function createControl({ env, nodes, ads, fetchFn = fetch, log = console 
       // Censored networks (Russia freezes TLS to many foreign servers after ~16 KB): the client may ask to go
       // through this exit's domestic relay node (its "relayVia"), which forwards to the exit with the same token.
       const via = body.relay === true && n.relayVia ? NODES.find((x) => x.id === n.relayVia && x.proxy) : null;
-      const hop = via && (DEV || health.get(via.id).up) ? via : null;
+      // Only once the relay itself reports that it carries this exit (its RELAY_TO), so a relayVia added before
+      // the relay is provisioned never sends anyone to a hop that would turn them away.
+      const vh = via && health.get(via.id);
+      const hop = via && (DEV || (vh.up && (vh.relays || []).includes(n.id))) ? via : null;
       const p = hop ? hop.proxy : n.proxy;
       return { mode: 'proxy', server: publicNode(n), exp, tor, block, relayed: !!hop,
         proxy: { scheme: p.scheme, host: p.host, port: p.port, username: 'veil', password: token } };
