@@ -232,10 +232,15 @@ object Vpn {
      */
     private fun connectXray(ctx: Context, serverId: String, reconnect: Boolean, wantTor: Boolean, wantBlock: Boolean) {
         val api = ControlApi(ctx)
+        // "relay": the proxy may come through the exit's relay inside the country (a domestic hop is not frozen).
         fun call(mode: String) = api.call("POST", "/v1/connect", JSONObject()
-            .put("server", serverId).put("mode", mode).put("tor", wantTor).put("block", wantBlock))
-        var mode = if (noVless || (reconnect && protocol == "proxy" && XrayVpnService.isUp())) "proxy" else "vless"
-        val r = try { call(mode) } catch (e: ApiError) {
+            .put("server", serverId).put("mode", mode).put("tor", wantTor).put("block", wantBlock).put("relay", mode == "proxy"))
+        // A relayed proxy gets through where the network freezes connections abroad, so it comes first when the
+        // node has one; otherwise VLESS Reality, then the node's own proxy.
+        val relayed = if (reconnect && protocol == "vless") null
+            else runCatching { call("proxy") }.getOrNull()?.takeIf { it.optBoolean("relayed", false) }
+        var mode = if (relayed != null || noVless || (reconnect && protocol == "proxy" && XrayVpnService.isUp())) "proxy" else "vless"
+        val r = relayed ?: try { call(mode) } catch (e: ApiError) {
             // Nodes without VLESS (or with Xray down) say so; their HTTPS proxy is always there.
             if (mode == "vless" && (e.code == "vless_unavailable" || e.code == "server_offline")) { mode = "proxy"; call(mode) } else throw e
         }

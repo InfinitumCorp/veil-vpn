@@ -18,6 +18,9 @@
 #   ENABLE_WS=1            VLESS and/or Shadowsocks over WebSocket, TLS on the existing port 443
 #                          (a secret path). Needs ENABLE_VLESS=1 or ENABLE_SHADOWSOCKS=1.
 #                          WS_HOST / WS_SNI / WS_PORT override the name clients use (a CDN hostname).
+# RELAY_TO="<exit id>=<exit host>:443,..."  Makes this node a domestic relay for those exits (censored countries
+#                          freeze TLS to foreign servers): it forwards their proxy users to the exit, which still
+#                          checks every token. Then add "relayVia": "<this node id>" to each exit in NODES.
 # Prints the node's nodes.json entry at the end (WireGuard key, OpenVPN CA and tls-crypt key included).
 # VLESS ids and Shadowsocks passwords in that entry are node secrets: paste them into NODES only.
 set -euo pipefail
@@ -432,6 +435,7 @@ ACCOUNTS_FILE=/var/lib/veil/accounts.json
 HOOK_PORT=9102
 EOF
 [ "$TOR" = 1 ] && echo "TOR_SOCKS=127.0.0.1:9050" >> /etc/veil-node.env
+[ -n "${RELAY_TO:-}" ] && echo "RELAY_TO=${RELAY_TO}" >> /etc/veil-node.env
 [ "$IKEV2" = 1 ] && echo "SWAN_SECRETS=/etc/swanctl/conf.d/veil-secrets.conf" >> /etc/veil-node.env
 if [ "$ENABLE_VLESS" = 1 ] || [ "$ENABLE_SHADOWSOCKS" = 1 ]; then
   echo "==> Xray-core ${XRAY_VERSION} (VLESS Reality / Shadowsocks-2022, off unless opted in)"
