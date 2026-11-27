@@ -53,7 +53,7 @@ class Bridge(
             }
             list.toString()
         }
-        "connect" -> connect(p.getString("server"))
+        "connect" -> connect(connectServer(p))
         "disconnect" -> {
             VeilService.disconnect(ctx)
             withTimeoutOrNull(5_000) { while (Vpn.state != "off") delay(100) }
@@ -133,6 +133,14 @@ class Bridge(
             "{}"
         }
         else -> throw ApiError("unknown_call")
+    }
+
+    /** A blank server means Connect was pressed with no location chosen: reuse the last connection. */
+    private fun connectServer(p: JSONObject): String {
+        val raw = if (!p.has("server") || p.isNull("server")) "" else p.optString("server", "")
+        val id = raw.trim().ifEmpty { prefs.getString("last_server", null)?.trim().orEmpty() }
+        if (id.isEmpty()) throw ApiError("no_server")
+        return id
     }
 
     private suspend fun connect(server: String): String {
