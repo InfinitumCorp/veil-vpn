@@ -167,6 +167,9 @@ dd small{font-size:13px;color:var(--muted)}
 /* phone + extension popup */
 .bottom a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;text-decoration:none;color:var(--muted)}
 .bottom a[aria-current="page"]{color:var(--ink)}
+.bottom a[data-nav="connect"][data-state="on"],
+.bottom a[data-nav="connect"][data-state="connecting"],
+.bottom a[data-nav="connect"][data-state="error"]{color:var(--ink)}
 @media (max-width:900px){
   .stats,.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stats div:nth-child(3),.kpi:nth-child(3){padding-left:0;border-left:0}

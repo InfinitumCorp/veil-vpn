@@ -2,6 +2,7 @@
 //  - live: inside the browser extension, talks to the background worker and control server
 //  - demo: in a plain web page, where a site cannot route traffic, everything is simulated
 import { RATE_PER_MIN, MAX_MIN, MAX_DAY, REF_PRICE, TIERS, tierOf, split, memberShare } from './economics.js';
+import { bottomConnectLabel, connectTarget } from './connect-target.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -201,10 +202,24 @@ const cc = (flag = '') => [...flag].map((c) => c.codePointAt(0) - 0x1f1e6).filte
 const plural = (n, w) => `${fmtInt(n)} ${w}${Math.round(n) === 1 ? '' : 's'}`;
 const pct = (w) => (!w ? '0%' : w < 1e-4 ? '<0.01%' : `${(w * 100).toPrecision(2)}%`);
 const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); };
-const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', sign_in_required: 'Try again in a moment', pass_required: 'Watch one short ad to unlock 24 hours of VEIL', ad_not_finished: 'Let the ad finish first', bad_ticket: 'That ad expired. Watch a new one', cid_unreachable: 'Cumulus ID could not be reached. Try again', cid_failed: 'Sign-in did not finish. Try again', cid_mismatch: 'That sign-in did not match. Try again', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
+const errText = (e) => ({ not_connected: 'Connect first', no_wallet: 'Link a FIRM Wallet first', bad_solana_address: 'That is not a valid Solana address', server_offline: 'That server is offline', tor_unavailable: 'This location has no Tor exit yet. Pick another, or turn Tor off', wallet_in_use: 'That wallet is linked to too many accounts', rate_limited: 'Too many attempts, try again shortly', ikev2_unavailable: 'This location has no IKEv2 yet. Pick another, or switch protocol', openvpn_unavailable: 'This location has no OpenVPN yet. Pick another', wireguard_unavailable: 'This location has no WireGuard yet. Pick another', vless_unavailable: 'This location has no VLESS yet. Pick another, or turn VLESS off', 'vless-ws_unavailable': 'This location has no VLESS over WebSocket yet. Turn WebSocket on at the server, or pick another', shadowsocks_unavailable: 'This location has no Shadowsocks yet. Pick another, or turn Shadowsocks off', 'shadowsocks-ws_unavailable': 'This location has no Shadowsocks over WebSocket yet. Turn WebSocket on at the server, or pick another', ikev2_needs_android_11: 'IKEv2 needs Android 11 or later', sign_in_required: 'Try again in a moment', no_server: 'Pick a location to connect', pass_required: 'Watch one short ad to unlock 24 hours of VEIL', ad_not_finished: 'Let the ad finish first', bad_ticket: 'That ad expired. Watch a new one', cid_unreachable: 'Cumulus ID could not be reached. Try again', cid_failed: 'Sign-in did not finish. Try again', cid_mismatch: 'That sign-in did not match. Try again', vpn_permission_denied: 'VPN permission was not given', demo_manual: 'Set-ups for other devices come from the app or the browser extension', webcrypto_x25519: 'This browser cannot make WireGuard keys. Update it, or pick OpenVPN' }[e.message] || `Something went wrong (${e.message})`);
 
 // ---------------------------------------------------------------- state
 let servers = [], conn = { state: 'off', server: null, since: 0 }, selected = null;
+let locationPicked = false;   // true only after the user taps a location; the row alone is not a choice
+const SERVER_KEY = 'veil-vpn-server';
+function rememberedServer() {
+  let saved = null;
+  try { saved = localStorage.getItem(SERVER_KEY); } catch { /* ignore */ }
+  return (typeof conn.server === 'string' && conn.server) || saved || null;
+}
+function rememberServer(id) {
+  if (!id) return;
+  try { localStorage.setItem(SERVER_KEY, id); } catch { /* ignore */ }
+}
+function resolveServer() {
+  return connectTarget({ picked: locationPicked, selected, last: rememberedServer(), servers });
+}
 let down = 0, up = 0, statTimer = null;
 const srv = (id) => servers.find((s) => s.id === id) || servers[0];
 
@@ -245,6 +260,17 @@ function paintConn() {
   $('#st-proto').textContent = ((s !== 'off' && PROTOS[conn.protocol]) || PROTOS[SET.proto] || PROTOS.wireguard)[0];
   paintShield(); paintNet();
   if (s !== 'on') { $('#st-time').textContent = '00:00:00'; $('#st-down').textContent = $('#st-up').textContent = EXT ? '—' : '0.0 MB'; }
+  paintBottomNav();
+}
+// The bottom Connect tab is navigation, not a second power button. Its label follows the tunnel
+// so it reads Connected once the VPN is up, and Connecting while that is in progress.
+function paintBottomNav() {
+  const label = bottomConnectLabel(conn.state);
+  for (const a of $$('.bottom a[data-nav="connect"]')) {
+    a.dataset.state = conn.state;
+    const span = a.querySelector('span');
+    if (span) span.textContent = label;
+  }
 }
 function paintStats() {
   if (conn.state !== 'on') return;
@@ -293,8 +319,15 @@ power.addEventListener('click', async (e) => {
   try {
     // Connected, reconnecting or still waiting for the first handshake: the button stops the tunnel.
     if (conn.state !== 'off') { conn = { state: 'off' }; paintConn(); conn = await api.disconnect(); down = up = 0; paintConn(); return; }
-    conn = { state: 'connecting', server: selected }; paintConn();
-    const next = await api.connect(selected);
+    if (!servers.length) await loadServers();
+    const id = resolveServer();
+    // No location chosen: resolveServer already reused the last connection, or a location on screen.
+    if (!id) return;
+    selected = id;
+    rememberServer(id);
+    renderLoc();
+    conn = { state: 'connecting', server: id }; paintConn();
+    const next = await api.connect(id);
     if (my !== attempt) return;
     conn = next; paintConn();
     loadAd();
@@ -319,7 +352,8 @@ $('#srv-search').addEventListener('input', (e) => renderServers(e.target.value))
 $('#srv-list').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-id]'); if (!b) return;
   selected = b.dataset.id;
-  try { localStorage.setItem('veil-vpn-server', selected); } catch { /* ignore */ }
+  locationPicked = true;
+  rememberServer(selected);
   renderLoc(); renderServers($('#srv-search').value);
   location.hash = 'connect';
   if (conn.state === 'on') { conn = await api.disconnect(); paintConn(); power.click(); }
@@ -391,9 +425,12 @@ async function showGate() {
   gate.hidden = true; gateOpen = false;
   toast(`VEIL is unlocked for ${t.hours || 24} hours`);
 }
+// The gate goes up before home whenever no valid pass is known, not after a failed Connect. A first
+// launch with no network (screen locked, slow API) shows it too: the gate retries until the API answers.
 async function checkPass() {
   const p = await api.passStatus().catch(() => null);
-  if (p?.required && !(p.exp > Date.now() + 60_000)) showGate();
+  if (p && p.required === false) return;
+  if (!(p?.exp > Date.now() + 60_000)) showGate();
 }
 
 // ---------------------------------------------------------------- earn view
@@ -600,21 +637,24 @@ renderServers(); // show "Loading locations…" right away; the first state call
 if (!gated) try { conn = await api.state(); } catch { /* keep the default */ }
 // On slow or filtered networks the first request can time out, so keep retrying (2 s, 4 s, 8 s ... up to 30 s)
 // until the list arrives, instead of staying on an empty Locations screen.
-let serversTry = 0, serversTimer = null, serversBusy = false;
+let serversTry = 0, serversTimer = null, serversFlight = null;
 async function loadServers() {
-  if (serversBusy) return;
-  serversBusy = true; clearTimeout(serversTimer);
-  try {
-    const list = await api.servers();
-    if (!Array.isArray(list) || !list.length) throw new Error('empty');
-    servers = list; serversTry = 0;
-    let saved = null; try { saved = localStorage.getItem('veil-vpn-server'); } catch { /* ignore */ }
-    if (!servers.some((s) => s.id === selected)) selected = servers.some((s) => s.id === conn.server) ? conn.server : servers.some((s) => s.id === saved) ? saved : servers[0].id;
-    renderLoc(); renderServers($('#srv-search').value); loadAd();
-  } catch {
-    if (serversTry === 0) toast('Offline. Retrying.');
-    serversTimer = setTimeout(loadServers, Math.min(30_000, 2000 * 2 ** serversTry++));
-  } finally { serversBusy = false; }
+  if (serversFlight) return serversFlight;
+  clearTimeout(serversTimer);
+  serversFlight = (async () => {
+    try {
+      const list = await api.servers();
+      if (!Array.isArray(list) || !list.length) throw new Error('empty');
+      servers = list; serversTry = 0;
+      const next = resolveServer();
+      if (next) selected = next;
+      renderLoc(); renderServers($('#srv-search').value); loadAd();
+    } catch {
+      if (serversTry === 0) toast('Offline. Retrying.');
+      serversTimer = setTimeout(loadServers, Math.min(30_000, 2000 * 2 ** serversTry++));
+    } finally { serversFlight = null; }
+  })();
+  return serversFlight;
 }
 retryServers = () => { if (!servers.length) loadServers(); };
 checkPass();

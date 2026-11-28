@@ -146,6 +146,8 @@ object NetworkGuard {
             "tor_unavailable" -> "This location has no Tor exit. Open VEIL to pick another, or turn Tor off."
             "server_offline" -> "That location is offline. Open VEIL to pick another."
             "network_blocks_vpn" -> "This network is blocking VEIL, so it was turned off to keep you online. Open VEIL to try again."
+            "pass_required" -> "VEIL is free: open the app and watch one short ad for 24 hours of protection."
+            "network_unreachable" -> "No internet right now. VEIL will be ready when you are back online."
             else -> "VEIL could not connect. Open the app to try again."
         }
         val nm = ctx.getSystemService(NotificationManager::class.java)

@@ -51,7 +51,11 @@ class VeilService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_CONNECT -> {
-                val server = intent.getStringExtra(EXTRA_SERVER) ?: return START_NOT_STICKY
+                val extra = intent.getStringExtra(EXTRA_SERVER)?.trim().orEmpty()
+                val server = extra.ifEmpty {
+                    getSharedPreferences("veil", MODE_PRIVATE).getString("last_server", null)?.trim().orEmpty()
+                }
+                if (server.isEmpty()) return START_NOT_STICKY
                 goForeground("Connecting…")
                 loop?.cancel()
                 loop = scope.launch { supervise(server) }

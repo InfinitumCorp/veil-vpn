@@ -44,8 +44,30 @@ class MainActivity : ComponentActivity() {
         vpnAsk?.complete(it.resultCode == RESULT_OK)
     }
 
+    private var notifyAsk: CompletableDeferred<Unit>? = null
+    private val notifyPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        notifyAsk?.complete(Unit)
+    }
+
+    /**
+     * Android 13+: ask to show notifications (the "VEIL is on" status and unsafe Wi-Fi alerts) the first
+     * time someone connects, not at start-up, where the system dialog would cover the start-up ad.
+     * Asked once; the answer never blocks connecting.
+     */
+    private suspend fun askNotifyPermissionOnce() {
+        if (Build.VERSION.SDK_INT < 33) return
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences("veil", MODE_PRIVATE)
+        if (prefs.getBoolean("asked_notify", false)) return
+        prefs.edit().putBoolean("asked_notify", true).apply()
+        val d = CompletableDeferred<Unit>().also { notifyAsk = it }
+        notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        d.await()
+    }
+
     /** [consent] is Android's IKEv2 profile consent screen; null asks for the WireGuard (VpnService) permission. */
     private suspend fun askVpnPermission(consent: Intent?): Boolean = withContext(Dispatchers.Main) {
+        askNotifyPermissionOnce()
         val intent = consent ?: VpnService.prepare(this@MainActivity) ?: return@withContext true
         val d = CompletableDeferred<Boolean>().also { vpnAsk = it }
         vpnPermission.launch(intent)
@@ -136,10 +158,6 @@ class MainActivity : ComponentActivity() {
         ads = Ads(this, adStrip, adSlot).also { it.start() }
         handleSignIn(intent)
         NetworkGuard.register(applicationContext)
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
-        }
     }
 
     // Cumulus ID sends the person back here (App Link or the return page's link) with a one-time code.
