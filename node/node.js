@@ -251,6 +251,7 @@ const onConnect = async (req, client, head) => {
     track(token, client);
     up.setTimeout(300_000, () => up.destroy());
     up.on('error', () => client.destroy());
+    up.on('close', () => client.destroy());   // an exit or Tor side that goes away (or idles out) takes the client with it
     client.on('close', () => up.destroy());
     return;
   }
@@ -265,6 +266,7 @@ const onConnect = async (req, client, head) => {
     track(token, client);
     up.setTimeout(300_000, () => up.destroy());
     up.on('error', () => client.destroy());
+    up.on('close', () => client.destroy());   // an exit or Tor side that goes away (or idles out) takes the client with it
     client.on('close', () => up.destroy());
     return;
   }
