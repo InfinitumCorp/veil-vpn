@@ -4,7 +4,7 @@
 #   scripts/update-node.sh <ssh-host> [relay-node-id]
 # With a relay id (the node's id in deploy/api/nodes.json, for example ru1-1) it sets RELAY_TO in
 # /etc/veil-node.env to every exit whose "relayVia" names that id (scripts/relay-to.mjs).
-# SSH_OPTS adds ssh/scp options (for example SSH_OPTS="-b 192.168.1.48" to leave a local VPN out).
+# SSH_OPTS adds ssh/scp options (for example SSH_OPTS="-o BindAddress=192.168.1.93" to leave a local VPN out; scp has no -b).
 # The old code stays in /opt/veil.prev; if veil-node does not come back healthy it is put back.
 set -euo pipefail
 HOST=${1:?usage: scripts/update-node.sh <ssh-host> [relay-node-id]}
@@ -41,7 +41,9 @@ fi
 systemctl restart veil-node
 set -a; . /etc/veil-node.env; set +a
 for i in $(seq 1 15); do
-  h=$(curl -fsS -m 3 -H "authorization: Bearer $AGENT_SECRET" "http://127.0.0.1:${AGENT_PORT:-9101}/health" 2>/dev/null || true)
+  # The agent speaks TLS with the node's public certificate when one is set up, plain HTTP otherwise.
+  h=$(curl -fsSk -m 3 -H "authorization: Bearer $AGENT_SECRET" "https://127.0.0.1:${AGENT_PORT:-9101}/health" 2>/dev/null \
+    || curl -fsS -m 3 -H "authorization: Bearer $AGENT_SECRET" "http://127.0.0.1:${AGENT_PORT:-9101}/health" 2>/dev/null || true)
   [ -n "$h" ] && break
   sleep 1
 done
